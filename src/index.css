@@ -365,6 +365,80 @@ textarea {
   min-width: 8rem;
 }
 
+.live-kitchen-toolbar {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.live-kitchen-panel {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--table-session-bg);
+  border: 1px solid var(--table-session-border);
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+
+.live-kitchen-header {
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.live-kitchen-empty {
+  margin: 0;
+}
+
+.live-kitchen-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: 40vh;
+  overflow: auto;
+}
+
+.live-kitchen-table-block {
+  list-style: none;
+}
+
+.live-kitchen-table-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+  color: var(--ink);
+}
+
+.live-kitchen-table-block ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.live-kitchen-pizza-line {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  background: var(--card);
+  border: 1px solid var(--table-session-border);
+}
+
+.live-kitchen-pizza-primary {
+  font-weight: 600;
+}
+
+.live-kitchen-pizza-sub {
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding-left: 0.35rem;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

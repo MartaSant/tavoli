@@ -3,10 +3,12 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useOrderCart } from '../context/OrderCartContext'
 import type { TavoloDisplayStatus } from '../domain/tavoloDisplayStatus'
+import { LiveKitchenPanel } from '../components/LiveKitchenPanel'
 import {
   createTavolo,
   formatSessionSummaryText,
   getActiveTavoliWithSessionState,
+  getLiveKitchenPendingPizzas,
   inviaComandeSessioni,
 } from '../data/repositories'
 import { db } from '../db/database'
@@ -26,6 +28,8 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
   const [msg, setMsg] = useState<string | null>(null)
   const [busyInvia, setBusyInvia] = useState(false)
   const [selectedTableIds, setSelectedTableIds] = useState<Set<number>>(() => new Set())
+  const [liveKitchenOpen, setLiveKitchenOpen] = useState(false)
+  const liveKitchen = useLiveQuery(() => getLiveKitchenPendingPizzas(), [])
 
   const pendingSelectedCount = useMemo(() => {
     if (!tavoli) return 0
@@ -90,8 +94,15 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
     <div className="stack">
       <h2 className="section-title">Tavoli attivi</h2>
       <div className="table-legend row-gap wrap">
-        <span className="table-legend-item table-legend-item--idle">Senza ordini</span>
-        <span className="table-legend-item table-legend-item--session">Con riepilogo</span>
+        {!liveKitchenOpen && (
+          <button
+            type="button"
+            className="table-legend-item table-legend-item--session table-legend-btn"
+            onClick={() => setLiveKitchenOpen(true)}
+          >
+            Riepilogo live pizze
+          </button>
+        )}
         <button
           type="button"
           className="table-legend-item table-legend-item--session table-legend-btn"
@@ -100,8 +111,10 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
         >
           Invia comande
         </button>
-        <span className="table-legend-item table-legend-item--sent">Comanda inviata</span>
       </div>
+      {liveKitchenOpen && (
+        <LiveKitchenPanel blocks={liveKitchen ?? []} onClose={() => setLiveKitchenOpen(false)} />
+      )}
       {msg && <p className={msg.includes('inviata') ? 'ok' : 'error'}>{msg}</p>}
       <div className="row-gap wrap">
         <input

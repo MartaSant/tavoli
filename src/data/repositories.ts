@@ -8,6 +8,10 @@ import {
   createNoteOnlyCartLine,
 } from '../domain/orderNoteLine'
 import {
+  type LiveKitchenTableBlock,
+  toLiveKitchenPizzaLine,
+} from '../domain/liveKitchenBoard'
+import {
   buildSessionSummaryModel,
   type SessionSummaryBibitaRow,
   type SessionSummaryModel,
@@ -982,6 +986,42 @@ export async function buildSessionSummaryModelForTable(
     bibite: data.bibite,
     totaleCentesimi: data.totaleCentesimi,
   })
+}
+
+/** Pizze in attesa (non inviate) da tutti i tavoli attivi con sessione — per riepilogo live cucina. */
+export async function getLiveKitchenPendingPizzas(): Promise<LiveKitchenTableBlock[]> {
+  await ensurePizzappDatabaseReady()
+  const tavoli = await getActiveTavoli()
+  const blocks: LiveKitchenTableBlock[] = []
+  for (const t of tavoli) {
+    if (t.id == null) continue
+    const after = t.lastPrintedAtMillis ?? 0
+    const orders = await ordersForTableSince(t.id, after)
+    if (orders.length === 0) continue
+    const pizze: LiveKitchenTableBlock['pizze'] = []
+    for (const order of orders) {
+      const oid = order.id!
+      const pizzaRows = (await db.orderLinePizza.where('orderId').equals(oid).toArray()).sort(
+        (a, b) => a.lineIndex - b.lineIndex,
+      )
+      for (const row of pizzaRows) {
+        if (row.inviataInCucina ?? false) continue
+        const modEnts = await db.orderLinePizzaMod.where('pizzaLineId').equals(row.id!).toArray()
+        const line = toLiveKitchenPizzaLine({
+          nome: pizzaNomePerOrdine(row.nomeSnapshot),
+          prezzoBaseCentesimi: row.prezzoBaseSnapshot,
+          extras: modEnts.filter((m) => m.tipo === 'EXTRA').map((m) => ({ nome: m.nome })),
+          removals: modEnts.filter((m) => m.tipo === 'REMOVAL').map((m) => m.nome),
+          nota: row.noteLibere,
+        })
+        if (line) pizze.push(line)
+      }
+    }
+    if (pizze.length > 0) {
+      blocks.push({ tableId: t.id, tableName: t.nome, pizze })
+    }
+  }
+  return blocks.sort((a, b) => a.tableName.localeCompare(b.tableName, 'it'))
 }
 
 export async function formatSessionSummaryText(tableId: number): Promise<string> {
