@@ -1,13 +1,13 @@
 import { useLayoutEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { toggleLightDarkFromResolved, deactivateTavolo } from '../data/repositories'
+import { toggleLightDarkFromResolved, deactivateTavolo, commitSessionPrint } from '../data/repositories'
 import { useSession } from '../auth/SessionContext'
 import { OrderTab } from './OrderTab'
 import { HistoryTab } from './HistoryTab'
 import { AdminTab } from './AdminTab'
 import { TablesTab } from './TablesTab'
 import { PrintsTab } from './PrintsTab'
-import { takeMainTabAfterReceipt, takePendingDeactivateTableId } from '../util/receiptNavStaging'
+import { takeMainTabAfterReceipt, takePendingSessionPrintDecision } from '../util/receiptNavStaging'
 
 const LABELS = ['Tavoli', 'Ordine', 'Storico', 'Stampe', 'Admin'] as const
 
@@ -15,7 +15,10 @@ const MAX_TAB = LABELS.length - 1
 
 export function MainScreen() {
   const [tab, setTab] = useState(0)
-  const [deactivateAskId, setDeactivateAskId] = useState<number | null>(null)
+  const [sessionPrintDecision, setSessionPrintDecision] = useState<{
+    tableId: number
+    summaryText: string
+  } | null>(null)
   const { logout, user } = useSession()
   const nav = useNavigate()
   const loc = useLocation()
@@ -23,8 +26,8 @@ export function MainScreen() {
   useLayoutEffect(() => {
     const m = takeMainTabAfterReceipt()
     if (m != null) setTab(Math.max(0, Math.min(m, MAX_TAB)))
-    const pending = takePendingDeactivateTableId()
-    if (pending != null) setDeactivateAskId(pending)
+    const pending = takePendingSessionPrintDecision()
+    if (pending != null) setSessionPrintDecision(pending)
   }, [])
 
   useLayoutEffect(() => {
@@ -40,14 +43,16 @@ export function MainScreen() {
     await toggleLightDarkFromResolved(dark)
   }
 
-  async function confirmDeactivate() {
-    if (deactivateAskId == null) return
+  async function confirmCloseSessionAndDeactivate() {
+    if (sessionPrintDecision == null) return
+    const { tableId, summaryText } = sessionPrintDecision
     try {
-      await deactivateTavolo(deactivateAskId)
+      await commitSessionPrint(tableId, summaryText)
+      await deactivateTavolo(tableId)
     } catch {
       /* ignore */
     }
-    setDeactivateAskId(null)
+    setSessionPrintDecision(null)
   }
 
   return (
@@ -78,17 +83,21 @@ export function MainScreen() {
         {tab === 4 && <AdminTab />}
       </main>
 
-      {deactivateAskId != null && (
+      {sessionPrintDecision != null && (
         <div className="modal-backdrop" role="presentation">
           <div className="modal card">
-            <h3>Disattivare il tavolo?</h3>
-            <p>Il riepilogo sessione è stato registrato. Vuoi disattivare questo tavolo?</p>
+            <h3>Chiudere la sessione sul tavolo?</h3>
+            <p>
+              Se confermi, la sessione viene registrata come chiusa (come dopo il riepilogo stampato) e il tavolo
+              viene nascosto dalla lista. Se mantieni attivo, torni ai tavoli senza modificare la sessione: potrai
+              ancora aggiungere o modificare ordini su quel tavolo.
+            </p>
             <div className="row-gap">
-              <button type="button" className="primary" onClick={() => void confirmDeactivate()}>
-                Disattiva
+              <button type="button" className="primary" onClick={() => void confirmCloseSessionAndDeactivate()}>
+                Sì, chiudi sessione e nascondi tavolo
               </button>
-              <button type="button" className="ghost" onClick={() => setDeactivateAskId(null)}>
-                Mantieni attivo
+              <button type="button" className="ghost" onClick={() => setSessionPrintDecision(null)}>
+                No, mantieni sessione aperta
               </button>
             </div>
           </div>

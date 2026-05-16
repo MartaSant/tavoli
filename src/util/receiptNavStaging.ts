@@ -3,7 +3,8 @@ const KEY = 'tavoli_receiptNavHandoff_v1'
 
 const MAIN_TAB_AFTER_RECEIPT_KEY = 'tavoli_mainTabAfterReceipt_v1'
 
-const PENDING_DEACTIVATE_TABLE_KEY = 'tavoli_pendingDeactivateTableId_v1'
+/** Dopo riepilogo sessione: commit DB solo se l'utente conferma chiusura tavolo. */
+const PENDING_SESSION_PRINT_DECISION_KEY = 'tavoli_pendingSessionPrintDecision_v1'
 
 export type TableSessionPrintPayload = { tableId: number; summaryText: string }
 
@@ -91,22 +92,25 @@ export function takeMainTabAfterReceipt(): number | null {
   }
 }
 
-export function stashPendingDeactivateTableId(tableId: number): void {
+export function stashPendingSessionPrintDecision(payload: TableSessionPrintPayload): void {
   try {
-    sessionStorage.setItem(PENDING_DEACTIVATE_TABLE_KEY, String(tableId))
+    sessionStorage.setItem(PENDING_SESSION_PRINT_DECISION_KEY, JSON.stringify(payload))
   } catch {
     /* ignore */
   }
 }
 
-/** Legge e rimuove l'id tavolo da disattivare dopo un riepilogo sessione stampato. */
-export function takePendingDeactivateTableId(): number | null {
+/** Legge e rimuove il payload per decidere se registrare chiusura sessione + disattivare tavolo. */
+export function takePendingSessionPrintDecision(): TableSessionPrintPayload | null {
   try {
-    const v = sessionStorage.getItem(PENDING_DEACTIVATE_TABLE_KEY)
-    sessionStorage.removeItem(PENDING_DEACTIVATE_TABLE_KEY)
-    if (v == null) return null
-    const n = Number(v)
-    return Number.isFinite(n) ? n : null
+    const raw = sessionStorage.getItem(PENDING_SESSION_PRINT_DECISION_KEY)
+    sessionStorage.removeItem(PENDING_SESSION_PRINT_DECISION_KEY)
+    if (raw == null) return null
+    const o = JSON.parse(raw) as { tableId?: unknown; summaryText?: unknown }
+    const tableId = Number(o.tableId)
+    const summaryText = typeof o.summaryText === 'string' ? o.summaryText : ''
+    if (!Number.isFinite(tableId) || summaryText === '') return null
+    return { tableId, summaryText }
   } catch {
     return null
   }

@@ -1,12 +1,11 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useOrderCart } from '../context/OrderCartContext'
-import { commitSessionPrint } from '../data/repositories'
 import {
   clearReceiptNavigationStaging,
   readReceiptNavigationStaging,
   stashMainTabForReturnFromReceipt,
-  stashPendingDeactivateTableId,
+  stashPendingSessionPrintDecision,
   type TableSessionPrintPayload,
 } from '../util/receiptNavStaging'
 
@@ -69,13 +68,7 @@ export function ReceiptPage() {
     const tab = p.returnMainTab ?? 1
     const tsp = p.tableSessionPrint
     if (tsp && !p.preview) {
-      try {
-        await commitSessionPrint(tsp.tableId, tsp.summaryText)
-        stashPendingDeactivateTableId(tsp.tableId)
-      } catch (e) {
-        window.alert(e instanceof Error ? e.message : 'Errore aggiornamento sessione tavolo')
-        return
-      }
+      stashPendingSessionPrintDecision(tsp)
     }
     leaveReceipt()
     stashMainTabForReturnFromReceipt(tab)
