@@ -477,26 +477,9 @@ export async function saveOrder(
 
   const tavolo = await db.tavoli.get(tableId)
   if (!tavolo) throw new Error('Tavolo non trovato')
-  const lastPrinted = tavolo.lastPrintedAtMillis ?? 0
-  const explicit = [...new Set((replaceSessionOrderIds ?? []).filter((id) => id > 0))]
-
-  let idsToDelete: number[] = []
-  let finalPizze = pizze
-  let finalBibite = bibite
-  if (explicit.length > 0) {
-    idsToDelete = explicit
-    finalPizze = pizze
-    finalBibite = bibite
-  } else {
-    const sessionOrders = await ordersForTableSince(tableId, lastPrinted)
-    const sessionIds = sessionOrders.map((o) => o.id!).filter((id) => id > 0)
-    if (sessionIds.length > 0) {
-      const { pizze: sp, bibite: sb } = await flattenSessionOrdersIntoLines(sessionOrders)
-      finalPizze = [...sp, ...pizze]
-      finalBibite = mergeBibiteCartLines(sb, bibite)
-      idsToDelete = sessionIds
-    }
-  }
+  const idsToDelete = [...new Set((replaceSessionOrderIds ?? []).filter((id) => id > 0))]
+  const finalPizze = pizze
+  const finalBibite = bibite
 
   return db.transaction('rw', pizzappOrderRwTables(idsToDelete.length > 0), async () => {
     if (idsToDelete.length > 0) {
@@ -645,6 +628,7 @@ export async function loadOrderIntoCart(orderId: number): Promise<OrderCartLoad>
     nomeTavoloSnapshot: order.nomeTavoloSnapshot ?? null,
     pizze,
     bibite,
+    sessionOrderIdsToReplaceOnSave: [orderId],
   }
 }
 
