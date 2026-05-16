@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
-import { importJson, importMenuCatalog } from './backupManager'
+import { exportMenuCatalogJson, importJson, importMenuCatalog } from './backupManager'
 import { db } from '../db/database'
 import { defaultAppState } from '../db/types'
 
@@ -161,5 +161,15 @@ describe('importMenuCatalog', () => {
     const catalogPath = join(process.cwd(), 'public', 'cataloghi', 'glovo-pellone-napoli.json')
     const json = readFileSync(catalogPath, 'utf8')
     await expect(importJson(json)).rejects.toThrow(/Importa solo menu/)
+  })
+
+  it('exportMenuCatalogJson produce file reimportabile', async () => {
+    await importMenuCatalog(menuPayload())
+    const exported = await exportMenuCatalogJson()
+    const root = JSON.parse(exported) as Record<string, unknown>
+    expect(root.menuCatalog).toBe(true)
+    expect(Array.isArray(root.pizze)).toBe(true)
+    await importMenuCatalog(exported)
+    expect((await db.pizze.toArray()).length).toBe(1)
   })
 })

@@ -20,7 +20,7 @@ import {
   upsertModificatore,
   upsertPizza,
 } from '../data/repositories'
-import { exportJson, importJson, importMenuCatalog } from '../backup/backupManager'
+import { exportJson, exportMenuCatalogJson, importJson, importMenuCatalog } from '../backup/backupManager'
 import { db } from '../db/database'
 import type { BibitaEntity, ModificatoreEntity, PizzaEntity } from '../db/types'
 
@@ -101,11 +101,32 @@ export function AdminTab() {
               e.target.value = ''
             }}
           />
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              void (async () => {
+                try {
+                  const json = await exportMenuCatalogJson()
+                  const blob = new Blob([json], { type: 'application/json' })
+                  const a = document.createElement('a')
+                  a.href = URL.createObjectURL(blob)
+                  a.download = `menu-catalog-${Date.now()}.json`
+                  a.click()
+                  setMsg('Export menu avviato')
+                } catch (e) {
+                  setMsg(e instanceof Error ? e.message : 'Errore')
+                }
+              })()
+            }}
+          >
+            Esporta solo menu JSON
+          </button>
           <button type="button" className="primary" onClick={() => menuFileRef.current?.click()}>
             Importa solo menu
           </button>
           <p className="hint">
-            File con <code>menuCatalog: true</code> (es. listino Glovo). Sostituisce solo pizze, modificatori e
+            File con <code>menuCatalog: true</code> (es. listino Glovo). Esporta/importa solo pizze, modificatori e
             bibite; utenti e ordini restano. Per file di backup completo usa la sezione sotto.
           </p>
 

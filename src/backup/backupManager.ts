@@ -305,6 +305,19 @@ export async function exportJson(): Promise<string> {
   return JSON.stringify(root, null, 2)
 }
 
+/** Esporta solo listino (compatibile con importMenuCatalog). */
+export async function exportMenuCatalogJson(): Promise<string> {
+  const root: Record<string, unknown> = {
+    schemaVersion: SCHEMA_VERSION,
+    menuCatalog: true,
+    exportedAt: Date.now(),
+    pizze: (await db.pizze.toArray()).map(pizzaToJson),
+    modificatori: (await db.modificatori.toArray()).map(modToJson),
+    bibite: (await db.bibite.toArray()).map(bibToJson),
+  }
+  return JSON.stringify(root, null, 2)
+}
+
 /**
  * Sostituisce solo `pizze`, `modificatori`, `bibite`.
  * Azzera `pizzaId` / `modificatoreId` / `bibitaId` sulle righe ordine storiche
