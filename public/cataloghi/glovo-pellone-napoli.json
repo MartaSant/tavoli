@@ -1,0 +1,617 @@
+{
+  "schemaVersion": 1,
+  "menuCatalog": true,
+  "sourceNote": "Estratto dal listino pubblico Glovo (Pizzeria Pellone Napoli). Prezzi e voci da verificare in sede. Modificatori derivati dagli ingredienti in scheda (stesso prezzo 0 — aggiornare in Admin).",
+  "pizze": [
+    {
+      "nome": "Provola e Pepe — Pomodoro, provola, formaggio, pepe nero olio d'oliva e basilico",
+      "prezzoCentesimi": 900,
+      "attiva": true,
+      "ordineVisualizzazione": 0
+    },
+    {
+      "nome": "Bufalina — Pomodoro, mozzarella di bufala, formaggio, olio d'oliva e basilico",
+      "prezzoCentesimi": 1300,
+      "attiva": true,
+      "ordineVisualizzazione": 1
+    },
+    {
+      "nome": "Wurstel e patatine — Wurstel, patatine fritte*, fior di latte e formaggio",
+      "prezzoCentesimi": 1400,
+      "attiva": true,
+      "ordineVisualizzazione": 2
+    },
+    {
+      "nome": "4 Stagioni capricciosa — Pomodoro, fior di latte, prosciutto cotto, funghi, olive, acciughe, origano, carciofini, formaggio, olio d'oliva e basilico",
+      "prezzoCentesimi": 1500,
+      "attiva": true,
+      "ordineVisualizzazione": 3
+    },
+    {
+      "nome": "Chef — Fior di latte, panna, prosciutto cotto, funghi, formaggio, olio d'oliva e basilico",
+      "prezzoCentesimi": 1400,
+      "attiva": true,
+      "ordineVisualizzazione": 4
+    },
+    {
+      "nome": "Mais — Fior di latte, panna, prosciutto cotto, mais, formaggio, olio d'oliva e basilico",
+      "prezzoCentesimi": 1300,
+      "attiva": true,
+      "ordineVisualizzazione": 5
+    },
+    {
+      "nome": "Diavola — Pomodoro, salame, formaggio, provola, olio d'oliva e basilico",
+      "prezzoCentesimi": 1200,
+      "attiva": true,
+      "ordineVisualizzazione": 6
+    },
+    {
+      "nome": "Margherita — Pomodoro, fior di latte, formaggio, olio d'oliva e basilico",
+      "prezzoCentesimi": 800,
+      "attiva": true,
+      "ordineVisualizzazione": 7
+    },
+    {
+      "nome": "Cosacca — Pomodoro, olio d'oliva, formaggio e basilico",
+      "prezzoCentesimi": 700,
+      "attiva": true,
+      "ordineVisualizzazione": 8
+    },
+    {
+      "nome": "Marinara — Pomodoro, origano, aglio, olio d'oliva e basilico",
+      "prezzoCentesimi": 700,
+      "attiva": true,
+      "ordineVisualizzazione": 9
+    },
+    {
+      "nome": "Ortolana — Provola, melanzane, zucchine, peperoni con capperi e olive, formaggio, olio d'oliva e basilico",
+      "prezzoCentesimi": 1600,
+      "attiva": true,
+      "ordineVisualizzazione": 10
+    },
+    {
+      "nome": "Fumè — Filetto di pomodoro, speck, funghi, formaggio, provola, olio d'oliva e basilico",
+      "prezzoCentesimi": 1600,
+      "attiva": true,
+      "ordineVisualizzazione": 11
+    },
+    {
+      "nome": "Primavera — Fior di latte, a crudo: speck, rucola, scaglie di grano, olio d'oliva e basilico",
+      "prezzoCentesimi": 1600,
+      "attiva": true,
+      "ordineVisualizzazione": 12
+    },
+    {
+      "nome": "Pizza fritta — Ricotta, provola, cicoli e pepe",
+      "prezzoCentesimi": 1500,
+      "attiva": true,
+      "ordineVisualizzazione": 13
+    },
+    {
+      "nome": "Ripieno — Ricotta, salame, provola, pepe, formaggio, pomodoro, olio d'oliva e basilico",
+      "prezzoCentesimi": 1500,
+      "attiva": true,
+      "ordineVisualizzazione": 14
+    },
+    {
+      "nome": "Fiocco — Sbriciolata di crocchè, panna, prosciutto cotto, provola, formaggio, olio d'oliva e basilico",
+      "prezzoCentesimi": 1500,
+      "attiva": true,
+      "ordineVisualizzazione": 15
+    },
+    {
+      "nome": "Tonnata — Provola, cipolla, tonno, olive, formaggio, olio d'oliva, basilico e origano",
+      "prezzoCentesimi": 1300,
+      "attiva": true,
+      "ordineVisualizzazione": 16
+    },
+    {
+      "nome": "Ripieno con scarole — Scarole, provola, olive, acciughe, olio d'oliva e pepe",
+      "prezzoCentesimi": 1600,
+      "attiva": true,
+      "ordineVisualizzazione": 17
+    },
+    {
+      "nome": "Vesuvio — Pomodoro, filetto di pomodoro, origano, aglio, acciughe, olive, rucola, capperi, formaggio, olio d'oliva, basilico e peperoncino",
+      "prezzoCentesimi": 1600,
+      "attiva": true,
+      "ordineVisualizzazione": 18
+    },
+    {
+      "nome": "Porcini — Funghi porcini* saltati con speck e salsiccia, provola, formaggio, olio d'oliva e basilico",
+      "prezzoCentesimi": 1600,
+      "attiva": true,
+      "ordineVisualizzazione": 19
+    },
+    {
+      "nome": "'O sole mio — Datterino giallo, provola di bufala, formaggio e basilico",
+      "prezzoCentesimi": 1600,
+      "attiva": true,
+      "ordineVisualizzazione": 20
+    },
+    {
+      "nome": "Bella 'mbriana — Filetto di pomodoro, speck, provola, panna, olio d'oliva, formaggio e basilico",
+      "prezzoCentesimi": 1600,
+      "attiva": true,
+      "ordineVisualizzazione": 21
+    },
+    {
+      "nome": "Mastuciccio — Zucca stufata con salsiccia e speck, provola, formaggio, olio d'oliva e basilico",
+      "prezzoCentesimi": 1500,
+      "attiva": true,
+      "ordineVisualizzazione": 22
+    },
+    {
+      "nome": "Contadina — Provola, salsa bolognese, formaggio, olio d'oliva e basilico",
+      "prezzoCentesimi": 1400,
+      "attiva": true,
+      "ordineVisualizzazione": 23
+    },
+    {
+      "nome": "Provola di bufala — Pomodoro, provola di bufala, formaggio, olio d'oliva e basilico",
+      "prezzoCentesimi": 1400,
+      "attiva": true,
+      "ordineVisualizzazione": 24
+    },
+    {
+      "nome": "'O primmo ammore — Pomodorini, provola di bufala, pepe, formaggio e basilico",
+      "prezzoCentesimi": 1400,
+      "attiva": true,
+      "ordineVisualizzazione": 25
+    },
+    {
+      "nome": "Salsiccia e friarielli — Provola, salsiccia, friarielli, olio d'oliva",
+      "prezzoCentesimi": 1600,
+      "attiva": true,
+      "ordineVisualizzazione": 26
+    },
+    {
+      "nome": "Totonno — Ragù napoletano con salsiccia, provola, formaggio, pecorino e basilico",
+      "prezzoCentesimi": 1400,
+      "attiva": true,
+      "ordineVisualizzazione": 27
+    },
+    {
+      "nome": "Pizza alla genovese — Genovese napoletana, provola, formaggio, e basilico",
+      "prezzoCentesimi": 1400,
+      "attiva": true,
+      "ordineVisualizzazione": 28
+    },
+    {
+      "nome": "Arancino piccolo",
+      "prezzoCentesimi": 150,
+      "attiva": true,
+      "ordineVisualizzazione": 29
+    },
+    {
+      "nome": "Frittatina piccola",
+      "prezzoCentesimi": 150,
+      "attiva": true,
+      "ordineVisualizzazione": 30
+    },
+    {
+      "nome": "Crocchè piccolo",
+      "prezzoCentesimi": 150,
+      "attiva": true,
+      "ordineVisualizzazione": 31
+    }
+  ],
+  "modificatori": [
+    {
+      "nome": "Acciughe",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 0
+    },
+    {
+      "nome": "Aglio",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 1
+    },
+    {
+      "nome": "Basilico e origano",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 2
+    },
+    {
+      "nome": "Basilico e peperoncino",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 3
+    },
+    {
+      "nome": "Capperi",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 4
+    },
+    {
+      "nome": "Carciofini",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 5
+    },
+    {
+      "nome": "Cicoli e pepe",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 6
+    },
+    {
+      "nome": "Cipolla",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 7
+    },
+    {
+      "nome": "Datterino giallo",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 8
+    },
+    {
+      "nome": "E basilico",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 9
+    },
+    {
+      "nome": "Filetto di pomodoro",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 10
+    },
+    {
+      "nome": "Fior di latte",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 11
+    },
+    {
+      "nome": "Fior di latte e formaggio",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 12
+    },
+    {
+      "nome": "Formaggio",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 13
+    },
+    {
+      "nome": "Formaggio e basilico",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 14
+    },
+    {
+      "nome": "Friarielli",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 15
+    },
+    {
+      "nome": "Funghi",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 16
+    },
+    {
+      "nome": "Funghi porcini saltati con speck e salsiccia",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 17
+    },
+    {
+      "nome": "Genovese napoletana",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 18
+    },
+    {
+      "nome": "Mais",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 19
+    },
+    {
+      "nome": "Melanzane",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 20
+    },
+    {
+      "nome": "Mozzarella di bufala",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 21
+    },
+    {
+      "nome": "Olio d'oliva",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 22
+    },
+    {
+      "nome": "Olio d'oliva e basilico",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 23
+    },
+    {
+      "nome": "Olio d'oliva e pepe",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 24
+    },
+    {
+      "nome": "Olive",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 25
+    },
+    {
+      "nome": "Origano",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 26
+    },
+    {
+      "nome": "Panna",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 27
+    },
+    {
+      "nome": "Patatine fritte",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 28
+    },
+    {
+      "nome": "Pecorino e basilico",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 29
+    },
+    {
+      "nome": "Pepe",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 30
+    },
+    {
+      "nome": "Pepe nero olio d'oliva e basilico",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 31
+    },
+    {
+      "nome": "Peperoni con capperi e olive",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 32
+    },
+    {
+      "nome": "Pomodorini",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 33
+    },
+    {
+      "nome": "Pomodoro",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 34
+    },
+    {
+      "nome": "Prosciutto cotto",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 35
+    },
+    {
+      "nome": "Provola",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 36
+    },
+    {
+      "nome": "Provola di bufala",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 37
+    },
+    {
+      "nome": "Ragù napoletano con salsiccia",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 38
+    },
+    {
+      "nome": "Ricotta",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 39
+    },
+    {
+      "nome": "Rucola",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 40
+    },
+    {
+      "nome": "Salame",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 41
+    },
+    {
+      "nome": "Salsa bolognese",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 42
+    },
+    {
+      "nome": "Salsiccia",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 43
+    },
+    {
+      "nome": "Sbriciolata di crocchè",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 44
+    },
+    {
+      "nome": "Scaglie di grano",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 45
+    },
+    {
+      "nome": "Scarole",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 46
+    },
+    {
+      "nome": "Speck",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 47
+    },
+    {
+      "nome": "Tonno",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 48
+    },
+    {
+      "nome": "Wurstel",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 49
+    },
+    {
+      "nome": "Zucca stufata con salsiccia e speck",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 50
+    },
+    {
+      "nome": "Zucchine",
+      "prezzoCentesimi": 0,
+      "attiva": true,
+      "ordineVisualizzazione": 51
+    }
+  ],
+  "bibite": [
+    {
+      "nome": "Paulaner Spezi 50 cl",
+      "prezzoCentesimi": 500,
+      "attiva": true,
+      "ordineVisualizzazione": 0
+    },
+    {
+      "nome": "Coca-Cola Lattina 330ml",
+      "prezzoCentesimi": 250,
+      "attiva": true,
+      "ordineVisualizzazione": 1
+    },
+    {
+      "nome": "Coca-Cola Zero Lattina 330ml",
+      "prezzoCentesimi": 250,
+      "attiva": true,
+      "ordineVisualizzazione": 2
+    },
+    {
+      "nome": "Aranciata 33 cl",
+      "prezzoCentesimi": 250,
+      "attiva": true,
+      "ordineVisualizzazione": 3
+    },
+    {
+      "nome": "Sprite Lattina 330ml",
+      "prezzoCentesimi": 250,
+      "attiva": true,
+      "ordineVisualizzazione": 4
+    },
+    {
+      "nome": "Acqua naturale 50 cl",
+      "prezzoCentesimi": 150,
+      "attiva": true,
+      "ordineVisualizzazione": 5
+    },
+    {
+      "nome": "Acqua frizzante 50 cl",
+      "prezzoCentesimi": 150,
+      "attiva": true,
+      "ordineVisualizzazione": 6
+    },
+    {
+      "nome": "Kbirr Natavota — birra napoletana 5.2% vol. 33 cl",
+      "prezzoCentesimi": 500,
+      "attiva": true,
+      "ordineVisualizzazione": 7
+    },
+    {
+      "nome": "Charles Quint Gold 8.5% vol. 33 cl",
+      "prezzoCentesimi": 500,
+      "attiva": true,
+      "ordineVisualizzazione": 8
+    },
+    {
+      "nome": "Charles Quint Rubis 33 cl",
+      "prezzoCentesimi": 500,
+      "attiva": true,
+      "ordineVisualizzazione": 9
+    },
+    {
+      "nome": "Paulaner Weisse 5.4% vol. 50 cl",
+      "prezzoCentesimi": 500,
+      "attiva": true,
+      "ordineVisualizzazione": 10
+    },
+    {
+      "nome": "Hacker-Pschorr Weisse 50 cl",
+      "prezzoCentesimi": 500,
+      "attiva": true,
+      "ordineVisualizzazione": 11
+    },
+    {
+      "nome": "Hacker-Pschorr Münchner Hell 50 cl",
+      "prezzoCentesimi": 500,
+      "attiva": true,
+      "ordineVisualizzazione": 12
+    },
+    {
+      "nome": "Hacker-Pschorr 1417 5.5% vol. 50 cl",
+      "prezzoCentesimi": 500,
+      "attiva": true,
+      "ordineVisualizzazione": 13
+    },
+    {
+      "nome": "Kbirr Pullicenhell 33 cl",
+      "prezzoCentesimi": 450,
+      "attiva": true,
+      "ordineVisualizzazione": 14
+    },
+    {
+      "nome": "Birra Heineken 66 cl",
+      "prezzoCentesimi": 400,
+      "attiva": true,
+      "ordineVisualizzazione": 15
+    },
+    {
+      "nome": "Heineken 33 cl",
+      "prezzoCentesimi": 250,
+      "attiva": true,
+      "ordineVisualizzazione": 16
+    }
+  ]
+}
