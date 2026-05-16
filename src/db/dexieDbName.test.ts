@@ -8,7 +8,7 @@ describe('resolvePizzappDexieName', () => {
   })
 
   it('GitHub Pages project path gets suffix', () => {
-    expect(resolvePizzappDexieName('/pizzawebapp/')).toBe('tavoliweb-pizzawebapp')
+    expect(resolvePizzappDexieName('/tavoli/')).toBe('tavoliweb-tavoli')
   })
 
   it('nested path segments', () => {
@@ -16,6 +16,6 @@ describe('resolvePizzappDexieName', () => {
   })
 
   it('override wins', () => {
-    expect(resolvePizzappDexieName('/pizzawebapp/', ' mio-db ')).toBe('mio-db')
+    expect(resolvePizzappDexieName('/tavoli/', ' mio-db ')).toBe('mio-db')
   })
 })

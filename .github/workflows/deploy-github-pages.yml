@@ -33,7 +33,8 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: npm run build:pages
+      # Project site URL: https://<user>.github.io/<repo>/ — base must match repo name.
+      - run: npm run build:pages -- --base /${{ github.event.repository.name }}/
 
       - uses: actions/configure-pages@v6
 

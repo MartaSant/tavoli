@@ -1,6 +1,6 @@
 /**
  * IndexedDB è per-origine (es. `user.github.io`), non per path.
- * Deriva il nome del DB dal `base` Vite così `/pizzawebapp/` → `pizzaweb-pizzawebapp`
+ * Deriva il nome del DB dal `base` Vite così `/tavoli/` → `tavoliweb-tavoli`
  * e non collide con altre app sullo stesso dominio.
  *
  * Con `base: '/'` (dev / dominio dedicato) resta `tavoliweb` (fork Tavoli; non condivide IndexedDB con PizzApp).

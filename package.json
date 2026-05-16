@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:pages": "tsc -b && vite build --base /pizzawebapp/",
+    "build:pages": "tsc -b && vite build --base /tavoli/",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run"

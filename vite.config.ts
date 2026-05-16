@@ -20,10 +20,10 @@ function githubPagesSpaFallback(): import('vite').Plugin {
 
 // https://vite.dev/config/
 // GitHub Pages (project site): stesso `github.io` per più repo → imposta `base` al nome repo.
-// Esempio: `base: '/pizzawebapp/'` così IndexedDB sarà `pizzaweb-pizzawebapp`, distinto da altre app.
+// Esempio: `base: '/tavoli/'` così IndexedDB sarà `tavoliweb-tavoli`, distinto da altre app sullo stesso dominio.
 // Vedi `src/db/dexieDbName.ts`. Override: `VITE_DEXIE_NAME` in `.env`.
 export default defineConfig({
-  // base: '/pizzawebapp/',
+  // base: '/tavoli/',
   plugins: [react(), githubPagesSpaFallback()],
   test: {
     environment: 'happy-dom',
