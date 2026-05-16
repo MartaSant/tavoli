@@ -2,7 +2,8 @@ import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { MoneyFormatter } from './money'
 import { OrderNumberService } from './orderNumber'
-import type { ReceiptData } from './receiptModels'
+import { ORDER_NOTE_LINE_NOME } from './orderNoteLine'
+import type { ReceiptData, ReceiptPizzaLine } from './receiptModels'
 
 const WIDTH = 32
 
@@ -18,9 +19,20 @@ export function formatReceipt(data: ReceiptData): string {
   sb.push(orderLine.slice(0, WIDTH))
   sb.push('-'.repeat(WIDTH))
 
-  if (data.pizze.length > 0) {
+  const noteLines = data.pizze.filter(isReceiptNoteOnlyLine)
+  const pizzaLines = data.pizze.filter((p) => !isReceiptNoteOnlyLine(p))
+
+  if (noteLines.length > 0) {
+    sb.push('NOTE')
+    for (const note of noteLines) {
+      const text = note.nota?.trim() || note.nome
+      sb.push(`  ${text}`.slice(0, WIDTH))
+    }
+  }
+
+  if (pizzaLines.length > 0) {
     sb.push('PIZZE')
-    for (const pizza of data.pizze) {
+    for (const pizza of pizzaLines) {
       appendPriceLine(sb, `  ${pizza.nome}`, pizza.prezzoBaseCentesimi)
       for (const extra of pizza.extras) {
         appendPriceLine(sb, `    + ${extra.nome}`, extra.prezzoCentesimi)
@@ -47,6 +59,15 @@ export function formatReceipt(data: ReceiptData): string {
   sb.push('-'.repeat(WIDTH))
   appendPriceLine(sb, 'TOTALE', data.totaleCentesimi)
   return sb.join('\n').replace(/\s+$/gm, '').trimEnd()
+}
+
+function isReceiptNoteOnlyLine(pizza: ReceiptPizzaLine): boolean {
+  return (
+    pizza.nome === ORDER_NOTE_LINE_NOME &&
+    pizza.prezzoBaseCentesimi === 0 &&
+    pizza.extras.length === 0 &&
+    pizza.removals.length === 0
+  )
 }
 
 function appendPriceLine(sb: string[], left: string, centesimi: number) {

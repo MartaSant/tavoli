@@ -2,6 +2,11 @@ import { AppThemeMode, normalizeThemeMode } from '../domain/appThemeMode'
 import { formatReceipt } from '../domain/receiptFormatter'
 import type { ReceiptBibitaLine, ReceiptData, ReceiptModLine, ReceiptPizzaLine } from '../domain/receiptModels'
 import { OrderNumberService } from '../domain/orderNumber'
+import {
+  ORDER_NOTE_LINE_NOME,
+  cartHasOrderContent,
+  createNoteOnlyCartLine,
+} from '../domain/orderNoteLine'
 import { pizzaNomePerOrdine } from '../domain/pizzaNome'
 import { normalizeUsername } from '../domain/usernameNormalizer'
 import { PinHasher } from '../auth/pinHasher'
@@ -409,7 +414,7 @@ export function previewOrderSnapshot(
   bibite: CartBibitaLine[],
   nomeOperatore?: string | null,
 ): string {
-  if (pizze.length === 0 && bibite.length === 0) throw new Error("Aggiungi almeno una voce all'ordine")
+  if (!cartHasOrderContent(pizze, bibite)) throw new Error("Aggiungi almeno una voce o una nota all'ordine")
   const receipt = buildReceipt(nomeCliente, nomeTavolo, numeroDisplay, pizze, bibite, nomeOperatore, null)
   return formatReceipt(receipt)
 }
@@ -444,7 +449,7 @@ export async function saveOrder(
   nomeOperatore?: string | null,
   replaceSessionOrderIds?: number[] | null,
 ): Promise<OrderEntity> {
-  if (pizze.length === 0 && bibite.length === 0) throw new Error("Aggiungi almeno una voce all'ordine")
+  if (!cartHasOrderContent(pizze, bibite)) throw new Error("Aggiungi almeno una voce o una nota all'ordine")
   await ensurePizzappDatabaseReady()
 
   const tavolo = await db.tavoli.get(tableId)
@@ -597,14 +602,7 @@ export async function loadOrderIntoCart(orderId: number): Promise<OrderCartLoad>
       tipo: m.tipo,
       prezzoCentesimi: m.prezzoCentesimi,
     }))
-    pizze.push({
-      localId: newLocalIdFallback(idx),
-      pizzaId: row.pizzaId,
-      nome: pizzaNomePerOrdine(row.nomeSnapshot),
-      prezzoBaseCentesimi: row.prezzoBaseSnapshot,
-      mods,
-      nota: row.noteLibere,
-    })
+    pizze.push(cartPizzaLineFromDbRow(row, newLocalIdFallback(idx), mods))
   }
   const bibite: CartBibitaLine[] = bibRows.map((row, idx) => ({
     localId: newLocalIdFallback(idx + 10000),
@@ -624,6 +622,33 @@ export async function loadOrderIntoCart(orderId: number): Promise<OrderCartLoad>
 
 function newLocalIdFallback(salt: number): number {
   return Math.floor(Date.now() * 1000 + salt + Math.random() * 1e6)
+}
+
+function cartPizzaLineFromDbRow(
+  row: {
+    pizzaId: number | null
+    nomeSnapshot: string
+    prezzoBaseSnapshot: number
+    noteLibere: string | null
+  },
+  localId: number,
+  mods: CartPizzaLine['mods'],
+): CartPizzaLine {
+  if (
+    row.pizzaId == null &&
+    row.prezzoBaseSnapshot === 0 &&
+    row.nomeSnapshot === ORDER_NOTE_LINE_NOME
+  ) {
+    return createNoteOnlyCartLine(row.noteLibere ?? '', localId)
+  }
+  return {
+    localId,
+    pizzaId: row.pizzaId,
+    nome: pizzaNomePerOrdine(row.nomeSnapshot),
+    prezzoBaseCentesimi: row.prezzoBaseSnapshot,
+    mods,
+    nota: row.noteLibere,
+  }
 }
 
 export async function createTavolo(nome: string): Promise<number> {
@@ -691,14 +716,7 @@ async function flattenSessionOrdersIntoLines(orders: OrderEntity[]): Promise<{ p
         tipo: m.tipo,
         prezzoCentesimi: m.prezzoCentesimi,
       }))
-      pizze.push({
-        localId: newLocalIdFallback(salt),
-        pizzaId: row.pizzaId,
-        nome: pizzaNomePerOrdine(row.nomeSnapshot),
-        prezzoBaseCentesimi: row.prezzoBaseSnapshot,
-        mods,
-        nota: row.noteLibere,
-      })
+      pizze.push(cartPizzaLineFromDbRow(row, newLocalIdFallback(salt), mods))
     }
     const bibRows = await db.orderLineBibita.where('orderId').equals(oid).toArray()
     for (const row of bibRows) {
