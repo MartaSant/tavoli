@@ -7,7 +7,7 @@ import { useOrderCart } from '../context/OrderCartContext'
 import { db } from '../db/database'
 import { stageReceiptNavigation } from '../util/receiptNavStaging'
 
-export function OrderTab() {
+export function OrderTab({ onOrderConfirmed }: { onOrderConfirmed?: () => void }) {
   const nav = useNavigate()
   const cart = useOrderCart()
   const nextState = useLiveQuery(() => db.appState.get(1))
@@ -19,19 +19,6 @@ export function OrderTab() {
     void cart.refreshMods()
   }, [cart])
 
-  useEffect(() => {
-    const offer = cart.postConfirmReceiptOffer
-    if (!offer) return
-    const t = window.setTimeout(() => {
-      if (window.confirm('Stampare o inviare lo scontrino?')) {
-        stageReceiptNavigation(offer, false, 1)
-        nav('/main/receipt')
-      }
-      cart.consumePostConfirmReceiptOffer()
-    }, 400)
-    return () => window.clearTimeout(t)
-  }, [cart, cart.postConfirmReceiptOffer, nav])
-
   async function onPreview() {
     const snap = await cart.previewOrder()
     if (snap) {
@@ -41,7 +28,9 @@ export function OrderTab() {
   }
 
   async function onConfirm() {
-    await cart.confirmOrder()
+    await cart.confirmOrder(() => {
+      onOrderConfirmed?.()
+    })
   }
 
   const nextNum = nextState?.nextOrderNumber ?? 1

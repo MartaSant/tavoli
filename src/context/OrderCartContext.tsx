@@ -54,8 +54,6 @@ interface OrderCartContextValue {
   totalCentesimi: number
   message: string | null
   setMessage: (m: string | null) => void
-  postConfirmReceiptOffer: string | null
-  consumePostConfirmReceiptOffer: () => void
   previewOrder: () => Promise<string | null>
   confirmOrder: (onSaved?: (snap: string) => void | Promise<void>) => Promise<void>
   loadCartFromOrder: (orderId: number) => Promise<void>
@@ -79,7 +77,6 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
   const [modResults, setModResults] = useState<ModificatoreEntity[]>([])
   const [allMods, setAllMods] = useState<ModificatoreEntity[]>([])
   const [message, setMessage] = useState<string | null>(null)
-  const [postConfirmReceiptOffer, setPostConfirmReceiptOffer] = useState<string | null>(null)
   const sessionOrderIdsToReplaceOnSaveRef = useRef<number[] | null>(null)
 
   const refreshMods = useCallback(async () => {
@@ -278,8 +275,6 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
     [pizzaLines, bibitaLines],
   )
 
-  const consumePostConfirmReceiptOffer = useCallback(() => setPostConfirmReceiptOffer(null), [])
-
   const previewOrder = useCallback(async (): Promise<string | null> => {
     try {
       if (pizzaLines.length === 0 && bibitaLines.length === 0) {
@@ -329,7 +324,6 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
             : undefined,
         )
         await onOrderConfirmed(state.confirmFeedback)
-        setPostConfirmReceiptOffer(order.receiptSnapshot)
         resetCart()
         await Promise.resolve(onSaved?.(order.receiptSnapshot))
         setMessage(null)
@@ -410,8 +404,6 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
       totalCentesimi,
       message,
       setMessage,
-      postConfirmReceiptOffer,
-      consumePostConfirmReceiptOffer,
       previewOrder,
       confirmOrder,
       loadCartFromOrder,
@@ -450,8 +442,6 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
       applyCartLoad,
       totalCentesimi,
       message,
-      postConfirmReceiptOffer,
-      consumePostConfirmReceiptOffer,
       previewOrder,
       confirmOrder,
       loadCartFromOrder,

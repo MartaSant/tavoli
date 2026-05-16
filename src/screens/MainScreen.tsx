@@ -77,7 +77,7 @@ export function MainScreen() {
       </nav>
       <main className="main-body">
         {tab === 0 && <TablesTab onGoToOrder={() => setTab(1)} />}
-        {tab === 1 && <OrderTab />}
+        {tab === 1 && <OrderTab onOrderConfirmed={() => setTab(0)} />}
         {tab === 2 && <HistoryTab />}
         {tab === 3 && <PrintsTab />}
         {tab === 4 && <AdminTab />}
