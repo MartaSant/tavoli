@@ -36,6 +36,8 @@ export interface OrderCartLoad {
   nomeTavoloSnapshot?: string | null
   pizze: CartPizzaLine[]
   bibite: CartBibitaLine[]
+  /** Se valorizzato, alla conferma ordine quegli ordini e i riepiloghi stampati del tavolo vengono sostituiti. */
+  sessionOrderIdsToReplaceOnSave?: number[] | null
 }
 
 export function newLocalId(): number {

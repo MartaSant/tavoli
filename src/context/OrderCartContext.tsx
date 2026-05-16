@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { BibitaEntity, ModificatoreEntity, PizzaEntity } from '../db/types'
 import {
   loadMergedSessionIntoCart as mergeTableSessionIntoCart,
@@ -80,6 +80,7 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
   const [allMods, setAllMods] = useState<ModificatoreEntity[]>([])
   const [message, setMessage] = useState<string | null>(null)
   const [postConfirmReceiptOffer, setPostConfirmReceiptOffer] = useState<string | null>(null)
+  const sessionOrderIdsToReplaceOnSaveRef = useRef<number[] | null>(null)
 
   const refreshMods = useCallback(async () => {
     setAllMods(await modsActive())
@@ -231,6 +232,7 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const resetCart = useCallback(() => {
+    sessionOrderIdsToReplaceOnSaveRef.current = null
     setSelectedTableId(null)
     setSelectedTableNome(null)
     setPizzaLines([])
@@ -238,6 +240,7 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const setSelectedTable = useCallback((id: number | null, nome: string | null) => {
+    sessionOrderIdsToReplaceOnSaveRef.current = null
     setSelectedTableId(id)
     setSelectedTableNome(nome?.trim() ? nome.trim() : null)
   }, [])
@@ -245,6 +248,7 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
   const prepareNewOrderForTable = useCallback(
     (id: number, nome: string | null) => {
       clearCartLinesAndSearchOnly()
+      sessionOrderIdsToReplaceOnSaveRef.current = null
       setSelectedTable(id, nome)
     },
     [clearCartLinesAndSearchOnly, setSelectedTable],
@@ -252,6 +256,7 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
 
   const applyCartLoad = useCallback(
     (load: OrderCartLoad) => {
+      sessionOrderIdsToReplaceOnSaveRef.current = load.sessionOrderIdsToReplaceOnSave ?? null
       setSelectedTableId(load.tableId ?? null)
       setSelectedTableNome(load.nomeTavoloSnapshot?.trim() ? load.nomeTavoloSnapshot.trim() : null)
       setPizzaLines(load.pizze)
@@ -277,8 +282,8 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
 
   const previewOrder = useCallback(async (): Promise<string | null> => {
     try {
-      if (pizzaLines.length === 0) {
-        setMessage('Serve almeno una pizza')
+      if (pizzaLines.length === 0 && bibitaLines.length === 0) {
+        setMessage("Aggiungi almeno una voce all'ordine")
         return null
       }
       if (selectedTableId == null) {
@@ -319,6 +324,9 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
           pizzaLines,
           bibitaLines,
           user.username,
+          sessionOrderIdsToReplaceOnSaveRef.current?.length
+            ? sessionOrderIdsToReplaceOnSaveRef.current
+            : undefined,
         )
         await onOrderConfirmed(state.confirmFeedback)
         setPostConfirmReceiptOffer(order.receiptSnapshot)
@@ -351,6 +359,7 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
         const load = await mergeTableSessionIntoCart(tableId)
         applyCartLoad(load)
       } catch (e) {
+        sessionOrderIdsToReplaceOnSaveRef.current = null
         setSelectedTableId(null)
         setSelectedTableNome(null)
         setMessage(e instanceof Error ? e.message : 'Errore')

@@ -236,7 +236,7 @@ export function OrderTab() {
         <button
           type="button"
           className="secondary"
-          disabled={cart.pizzaLines.length === 0 || cart.selectedTableId == null}
+          disabled={!cart.isCartNonEmpty() || cart.selectedTableId == null}
           onClick={() => void onPreview()}
         >
           Anteprima ordine
@@ -244,7 +244,7 @@ export function OrderTab() {
         <button
           type="button"
           className="primary"
-          disabled={cart.pizzaLines.length === 0 || cart.selectedTableId == null}
+          disabled={!cart.isCartNonEmpty() || cart.selectedTableId == null}
           onClick={() => void onConfirm()}
         >
           Conferma ordine

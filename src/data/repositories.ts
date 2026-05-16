@@ -24,6 +24,16 @@ import { lineTotalBibita, lineTotalPizza } from './cartTypes'
 export const MENU_NAME_MAX = 35
 export const HISTORY_HOURS_MS = 48 * 60 * 60 * 1000
 
+async function deleteOrderAndLines(orderId: number): Promise<void> {
+  const pizzaLines = await db.orderLinePizza.where('orderId').equals(orderId).toArray()
+  for (const pl of pizzaLines) {
+    await db.orderLinePizzaMod.where('pizzaLineId').equals(pl.id!).delete()
+  }
+  await db.orderLinePizza.where('orderId').equals(orderId).delete()
+  await db.orderLineBibita.where('orderId').equals(orderId).delete()
+  await db.orders.delete(orderId)
+}
+
 export const MenuClearScope = {
   ALL: 'ALL',
   PIZZE: 'PIZZE',
@@ -399,9 +409,30 @@ export function previewOrderSnapshot(
   bibite: CartBibitaLine[],
   nomeOperatore?: string | null,
 ): string {
-  if (pizze.length === 0) throw new Error('Serve almeno una pizza')
+  if (pizze.length === 0 && bibite.length === 0) throw new Error("Aggiungi almeno una voce all'ordine")
   const receipt = buildReceipt(nomeCliente, nomeTavolo, numeroDisplay, pizze, bibite, nomeOperatore, null)
   return formatReceipt(receipt)
+}
+
+function mergeBibiteCartLines(a: CartBibitaLine[], b: CartBibitaLine[]): CartBibitaLine[] {
+  const map = new Map<string, CartBibitaLine>()
+  let salt = 0
+  const keyOf = (l: CartBibitaLine) => `${l.bibitaId ?? 'x'}|${l.nome}|${l.prezzoUnitarioCentesimi}`
+  const ingest = (lines: CartBibitaLine[]) => {
+    for (const line of lines) {
+      salt++
+      const k = keyOf(line)
+      const ex = map.get(k)
+      if (!ex) {
+        map.set(k, { ...line, localId: newLocalIdFallback(salt + 90000) })
+      } else {
+        map.set(k, { ...ex, quantita: ex.quantita + line.quantita })
+      }
+    }
+  }
+  ingest(a)
+  ingest(b)
+  return [...map.values()]
 }
 
 export async function saveOrder(
@@ -411,78 +442,104 @@ export async function saveOrder(
   pizze: CartPizzaLine[],
   bibite: CartBibitaLine[],
   nomeOperatore?: string | null,
+  replaceSessionOrderIds?: number[] | null,
 ): Promise<OrderEntity> {
-  if (pizze.length === 0) throw new Error('Serve almeno una pizza')
-  return db.transaction(
-    'rw',
-    [db.orders, db.orderLinePizza, db.orderLinePizzaMod, db.orderLineBibita, db.appState],
-    async () => {
-      let state = await db.appState.get(1)
-      if (!state) throw new Error('Configurazione mancante: completa il wizard')
-      const numero = state.nextOrderNumber
-      const op =
-        nomeOperatore?.trim() ||
-        (await db.users.get(createdByUserId))?.username ||
-        undefined
-      const receipt = buildReceipt(null, nomeTavoloSnapshot, numero, pizze, bibite, op, null)
-      const snapshot = formatReceipt(receipt)
-      const totale = receipt.totaleCentesimi
-      const now = Date.now()
-      const orderId = (await db.orders.add({
-        numeroDisplay: numero,
-        nomeCliente: null,
-        tableId,
-        nomeTavoloSnapshot,
-        createdAt: now,
-        totaleCentesimi: totale,
-        createdByUserId,
-        receiptSnapshot: snapshot,
+  if (pizze.length === 0 && bibite.length === 0) throw new Error("Aggiungi almeno una voce all'ordine")
+  const stores = [db.orders, db.orderLinePizza, db.orderLinePizzaMod, db.orderLineBibita, db.appState, db.tablePrintLog]
+  return db.transaction('rw', stores, async () => {
+    const tavolo = await db.tavoli.get(tableId)
+    const lastPrinted = tavolo?.lastPrintedAtMillis ?? 0
+    const explicit = [...new Set((replaceSessionOrderIds ?? []).filter((id) => id > 0))]
+
+    let idsToDelete: number[] = []
+    let finalPizze = pizze
+    let finalBibite = bibite
+    if (explicit.length > 0) {
+      idsToDelete = explicit
+      finalPizze = pizze
+      finalBibite = bibite
+    } else {
+      const sessionOrders = await ordersForTableSince(tableId, lastPrinted)
+      const sessionIds = sessionOrders.map((o) => o.id!).filter((id) => id > 0)
+      if (sessionIds.length > 0) {
+        const { pizze: sp, bibite: sb } = await flattenSessionOrdersIntoLines(sessionOrders)
+        finalPizze = [...sp, ...pizze]
+        finalBibite = mergeBibiteCartLines(sb, bibite)
+        idsToDelete = sessionIds
+      }
+    }
+
+    if (idsToDelete.length > 0) {
+      await db.tablePrintLog.where('tableId').equals(tableId).delete()
+      for (const oid of idsToDelete) {
+        await deleteOrderAndLines(oid)
+      }
+    }
+    let state = await db.appState.get(1)
+    if (!state) throw new Error('Configurazione mancante: completa il wizard')
+    const numero = state.nextOrderNumber
+    const op =
+      nomeOperatore?.trim() ||
+      (await db.users.get(createdByUserId))?.username ||
+      undefined
+    const receipt = buildReceipt(null, nomeTavoloSnapshot, numero, finalPizze, finalBibite, op, null)
+    const snapshot = formatReceipt(receipt)
+    const totale = receipt.totaleCentesimi
+    const now = Date.now()
+    const orderId = (await db.orders.add({
+      numeroDisplay: numero,
+      nomeCliente: null,
+      tableId,
+      nomeTavoloSnapshot,
+      createdAt: now,
+      totaleCentesimi: totale,
+      createdByUserId,
+      receiptSnapshot: snapshot,
+    })) as number
+
+    for (let index = 0; index < finalPizze.length; index++) {
+      const line = finalPizze[index]
+      const pizzaLineId = (await db.orderLinePizza.add({
+        orderId,
+        pizzaId: line.pizzaId,
+        nomeSnapshot: line.nome,
+        prezzoBaseSnapshot: line.prezzoBaseCentesimi,
+        noteLibere: line.nota?.trim() ? line.nota : null,
+        lineIndex: index,
       })) as number
-
-      for (let index = 0; index < pizze.length; index++) {
-        const line = pizze[index]
-        const pizzaLineId = (await db.orderLinePizza.add({
-          orderId,
-          pizzaId: line.pizzaId,
-          nomeSnapshot: line.nome,
-          prezzoBaseSnapshot: line.prezzoBaseCentesimi,
-          noteLibere: line.nota?.trim() ? line.nota : null,
-          lineIndex: index,
-        })) as number
-        const modRows: Omit<OrderLinePizzaModEntity, 'id'>[] = line.mods.map((mod) => ({
-          pizzaLineId,
-          modificatoreId: mod.modificatoreId,
-          nome: mod.nome,
-          tipo: mod.tipo,
-          prezzoCentesimi: mod.tipo === 'EXTRA' ? mod.prezzoCentesimi : 0,
-        }))
-        if (modRows.length > 0) {
-          await db.orderLinePizzaMod.bulkAdd(modRows)
-        }
+      const modRows: Omit<OrderLinePizzaModEntity, 'id'>[] = line.mods.map((mod) => ({
+        pizzaLineId,
+        modificatoreId: mod.modificatoreId,
+        nome: mod.nome,
+        tipo: mod.tipo,
+        prezzoCentesimi: mod.tipo === 'EXTRA' ? mod.prezzoCentesimi : 0,
+      }))
+      if (modRows.length > 0) {
+        await db.orderLinePizzaMod.bulkAdd(modRows)
       }
+    }
 
-      if (bibite.length > 0) {
-        await db.orderLineBibita.bulkAdd(
-          bibite.map(
-            (b): Omit<OrderLineBibitaEntity, 'id'> => ({
-              orderId,
-              bibitaId: b.bibitaId,
-              nomeSnapshot: b.nome,
-              prezzoUnitarioSnapshot: b.prezzoUnitarioCentesimi,
-              quantita: b.quantita,
-            }),
-          ),
-        )
-      }
+    if (finalBibite.length > 0) {
+      await db.orderLineBibita.bulkAdd(
+        finalBibite.map(
+          (b): Omit<OrderLineBibitaEntity, 'id'> => ({
+            orderId,
+            bibitaId: b.bibitaId,
+            nomeSnapshot: b.nome,
+            prezzoUnitarioSnapshot: b.prezzoUnitarioCentesimi,
+            quantita: b.quantita,
+          }),
+        ),
+      )
+    }
 
-      const next = OrderNumberService.nextAfter(numero)
-      await db.appState.put({ ...state, nextOrderNumber: next })
+    const next = OrderNumberService.nextAfter(numero)
+    await db.appState.put({ ...state, nextOrderNumber: next })
 
-      const saved = await db.orders.get(orderId)
-      if (!saved) throw new Error('Ordine non salvato')
-      return saved
-    },
-  )
+    const saved = await db.orders.get(orderId)
+    if (!saved) throw new Error('Ordine non salvato')
+    return saved
+  })
 }
 
 export async function getOrdersSince(since: number): Promise<OrderEntity[]> {
@@ -523,7 +580,10 @@ export async function loadOrderIntoCart(orderId: number): Promise<OrderCartLoad>
   const pizzaRows = (await db.orderLinePizza.where('orderId').equals(orderId).toArray()).sort(
     (a, b) => a.lineIndex - b.lineIndex,
   )
-  if (pizzaRows.length === 0) throw new Error('Questo ordine non ha pizze; carica un ordine con almeno una pizza')
+  const bibRows = await db.orderLineBibita.where('orderId').equals(orderId).toArray()
+  if (pizzaRows.length === 0 && bibRows.length === 0) {
+    throw new Error('Questo ordine non ha righe da caricare')
+  }
   const pizze: CartPizzaLine[] = []
   for (let idx = 0; idx < pizzaRows.length; idx++) {
     const row = pizzaRows[idx]
@@ -544,7 +604,6 @@ export async function loadOrderIntoCart(orderId: number): Promise<OrderCartLoad>
       nota: row.noteLibere,
     })
   }
-  const bibRows = await db.orderLineBibita.where('orderId').equals(orderId).toArray()
   const bibite: CartBibitaLine[] = bibRows.map((row, idx) => ({
     localId: newLocalIdFallback(idx + 10000),
     bibitaId: row.bibitaId,
@@ -602,9 +661,9 @@ export async function ordersForTableSince(tableId: number, afterMillis: number):
   return all.sort((a, b) => a.createdAt - b.createdAt)
 }
 
-async function mergeOrdersIntoLines(orders: OrderEntity[]): Promise<{ pizze: CartPizzaLine[]; bibite: CartBibitaLine[] }> {
+async function flattenSessionOrdersIntoLines(orders: OrderEntity[]): Promise<{ pizze: CartPizzaLine[]; bibite: CartBibitaLine[] }> {
   const pizze: CartPizzaLine[] = []
-  const bibMap = new Map<string, CartBibitaLine>()
+  const bibite: CartBibitaLine[] = []
   let salt = 0
   for (const order of orders) {
     const oid = order.id!
@@ -630,22 +689,17 @@ async function mergeOrdersIntoLines(orders: OrderEntity[]): Promise<{ pizze: Car
     }
     const bibRows = await db.orderLineBibita.where('orderId').equals(oid).toArray()
     for (const row of bibRows) {
-      const key = `${row.bibitaId ?? 'x'}|${row.nomeSnapshot}|${row.prezzoUnitarioSnapshot}`
-      const existing = bibMap.get(key)
-      if (!existing) {
-        bibMap.set(key, {
-          localId: newLocalIdFallback(salt + 50000),
-          bibitaId: row.bibitaId,
-          nome: row.nomeSnapshot,
-          prezzoUnitarioCentesimi: row.prezzoUnitarioSnapshot,
-          quantita: row.quantita,
-        })
-      } else {
-        bibMap.set(key, { ...existing, quantita: existing.quantita + row.quantita })
-      }
+      salt++
+      bibite.push({
+        localId: newLocalIdFallback(salt + 50000),
+        bibitaId: row.bibitaId,
+        nome: row.nomeSnapshot,
+        prezzoUnitarioCentesimi: row.prezzoUnitarioSnapshot,
+        quantita: row.quantita,
+      })
     }
   }
-  return { pizze, bibite: [...bibMap.values()] }
+  return { pizze, bibite }
 }
 
 export async function formatSessionSummaryText(tableId: number): Promise<string> {
@@ -653,10 +707,10 @@ export async function formatSessionSummaryText(tableId: number): Promise<string>
   if (!tavolo) return 'Tavolo non trovato.'
   const orders = await ordersForTableSince(tableId, tavolo.lastPrintedAtMillis ?? 0)
   if (orders.length === 0) return `Nessun ordine in sessione per «${tavolo.nome}».`
-  const { pizze, bibite } = await mergeOrdersIntoLines(orders)
+  const { pizze, bibite } = await flattenSessionOrdersIntoLines(orders)
   const last = orders[orders.length - 1]
   const op = (await db.users.get(last.createdByUserId))?.username
-  const totale = orders.reduce((s, o) => s + o.totaleCentesimi, 0)
+  const totale = pizze.reduce((s, p) => s + lineTotalPizza(p), 0) + bibite.reduce((s, b) => s + lineTotalBibita(b), 0)
   const receipt: ReceiptData = {
     nomeOperatore: op?.trim() || undefined,
     nomeCliente: null,
@@ -686,12 +740,14 @@ export async function loadMergedSessionIntoCart(tableId: number): Promise<OrderC
   if (!tavolo) throw new Error('Tavolo non trovato')
   const orders = await ordersForTableSince(tableId, tavolo.lastPrintedAtMillis ?? 0)
   if (orders.length === 0) throw new Error('Nessun ordine in sessione per questo tavolo')
-  const { pizze, bibite } = await mergeOrdersIntoLines(orders)
+  const { pizze, bibite } = await flattenSessionOrdersIntoLines(orders)
+  const orderIds = orders.map((o) => o.id!).filter((id) => id > 0)
   return {
     nomeCliente: null,
     tableId,
     nomeTavoloSnapshot: tavolo.nome,
     pizze,
     bibite,
+    sessionOrderIdsToReplaceOnSave: orderIds.length > 0 ? orderIds : null,
   }
 }
