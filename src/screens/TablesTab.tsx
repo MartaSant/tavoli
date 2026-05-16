@@ -2,14 +2,14 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useOrderCart } from '../context/OrderCartContext'
-import { createTavolo, formatSessionSummaryText } from '../data/repositories'
+import { createTavolo, formatSessionSummaryText, getActiveTavoliWithSessionState } from '../data/repositories'
 import { db } from '../db/database'
 import { stageReceiptNavigation } from '../util/receiptNavStaging'
 
 export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
   const nav = useNavigate()
   const cart = useOrderCart()
-  const tavoli = useLiveQuery(() => db.tavoli.filter((t) => t.attivo).toArray().then((a) => a.sort((x, y) => x.nome.localeCompare(y.nome))), [])
+  const tavoli = useLiveQuery(() => getActiveTavoliWithSessionState(), [])
   const [nuovoNome, setNuovoNome] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -42,6 +42,10 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
   return (
     <div className="stack">
       <h2 className="section-title">Tavoli attivi</h2>
+      <div className="table-legend row-gap wrap">
+        <span className="table-legend-item table-legend-item--idle">Senza ordini</span>
+        <span className="table-legend-item table-legend-item--session">Con riepilogo</span>
+      </div>
       {msg && <p className="error">{msg}</p>}
       <div className="row-gap wrap">
         <input
@@ -56,7 +60,10 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
       </div>
       <ul className="history-list">
         {(tavoli ?? []).map((t) => (
-          <li key={t.id} className="card history-card">
+          <li
+            key={t.id}
+            className={`card history-card table-card ${t.hasSessionOrders ? 'table-card--session' : 'table-card--idle'}`}
+          >
             <div className="row-between wrap">
               <strong>{t.nome}</strong>
               <div className="row-gap wrap">

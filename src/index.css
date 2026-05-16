@@ -12,6 +12,10 @@
   --card: #fff2e0;
   --error: #b00020;
   --ok: #2e6b3a;
+  --table-idle-bg: #f0ebe3;
+  --table-idle-border: #c8b8a4;
+  --table-session-bg: #e8f2e6;
+  --table-session-border: #5a9a62;
 }
 
 html[data-theme='light'] {
@@ -27,6 +31,10 @@ html[data-theme='dark'] {
   --cream-deep: #3d3228;
   --muted: #b5a08d;
   --ink: #f3e8dc;
+  --table-idle-bg: #2e2822;
+  --table-idle-border: #5c5046;
+  --table-session-bg: #243328;
+  --table-session-border: #6daf78;
 }
 
 *,
@@ -359,6 +367,42 @@ textarea {
 
 .history-card {
   margin: 0;
+}
+
+.table-legend {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.table-legend-item {
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.table-legend-item--idle {
+  background: var(--table-idle-bg);
+  border-color: var(--table-idle-border);
+}
+
+.table-legend-item--session {
+  background: var(--table-session-bg);
+  border-color: var(--table-session-border);
+}
+
+.table-card--idle {
+  background: var(--table-idle-bg);
+  border-color: var(--table-idle-border);
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+
+.table-card--session {
+  background: var(--table-session-bg);
+  border-color: var(--table-session-border);
+  border-left-width: 4px;
+  border-left-style: solid;
 }
 
 .menu-list {

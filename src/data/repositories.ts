@@ -685,6 +685,30 @@ export async function getActiveTavoli(): Promise<TavoloEntity[]> {
   return all.sort((a, b) => a.nome.localeCompare(b.nome))
 }
 
+/** True se il tavolo ha almeno un ordine nella sessione corrente (dopo l'ultima stampa). */
+export async function tableHasSessionOrders(tableId: number): Promise<boolean> {
+  await ensurePizzappDatabaseReady()
+  const tavolo = await db.tavoli.get(tableId)
+  if (!tavolo) return false
+  const after = tavolo.lastPrintedAtMillis ?? 0
+  const count = await db.orders
+    .filter((o) => o.tableId === tableId && o.createdAt > after)
+    .count()
+  return count > 0
+}
+
+export type ActiveTavoloRow = TavoloEntity & { hasSessionOrders: boolean }
+
+export async function getActiveTavoliWithSessionState(): Promise<ActiveTavoloRow[]> {
+  const tavoli = await getActiveTavoli()
+  return Promise.all(
+    tavoli.map(async (t) => ({
+      ...t,
+      hasSessionOrders: await tableHasSessionOrders(t.id!),
+    })),
+  )
+}
+
 export async function commitSessionPrint(tableId: number, summaryText: string): Promise<void> {
   await ensurePizzappDatabaseReady()
   const now = Date.now()
