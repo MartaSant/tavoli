@@ -6,7 +6,7 @@ import { pizzaNomePerOrdine } from '../domain/pizzaNome'
 import { normalizeUsername } from '../domain/usernameNormalizer'
 import { PinHasher } from '../auth/pinHasher'
 import { UserRole } from '../auth/userRole'
-import { db } from '../db/database'
+import { db, ensurePizzappDatabaseReady, pizzappOrderRwTables } from '../db/database'
 import type {
   AppStateEntity,
   BibitaEntity,
@@ -445,30 +445,32 @@ export async function saveOrder(
   replaceSessionOrderIds?: number[] | null,
 ): Promise<OrderEntity> {
   if (pizze.length === 0 && bibite.length === 0) throw new Error("Aggiungi almeno una voce all'ordine")
-  const stores = [db.orders, db.orderLinePizza, db.orderLinePizzaMod, db.orderLineBibita, db.appState, db.tablePrintLog]
-  return db.transaction('rw', stores, async () => {
-    const tavolo = await db.tavoli.get(tableId)
-    const lastPrinted = tavolo?.lastPrintedAtMillis ?? 0
-    const explicit = [...new Set((replaceSessionOrderIds ?? []).filter((id) => id > 0))]
+  await ensurePizzappDatabaseReady()
 
-    let idsToDelete: number[] = []
-    let finalPizze = pizze
-    let finalBibite = bibite
-    if (explicit.length > 0) {
-      idsToDelete = explicit
-      finalPizze = pizze
-      finalBibite = bibite
-    } else {
-      const sessionOrders = await ordersForTableSince(tableId, lastPrinted)
-      const sessionIds = sessionOrders.map((o) => o.id!).filter((id) => id > 0)
-      if (sessionIds.length > 0) {
-        const { pizze: sp, bibite: sb } = await flattenSessionOrdersIntoLines(sessionOrders)
-        finalPizze = [...sp, ...pizze]
-        finalBibite = mergeBibiteCartLines(sb, bibite)
-        idsToDelete = sessionIds
-      }
+  const tavolo = await db.tavoli.get(tableId)
+  if (!tavolo) throw new Error('Tavolo non trovato')
+  const lastPrinted = tavolo.lastPrintedAtMillis ?? 0
+  const explicit = [...new Set((replaceSessionOrderIds ?? []).filter((id) => id > 0))]
+
+  let idsToDelete: number[] = []
+  let finalPizze = pizze
+  let finalBibite = bibite
+  if (explicit.length > 0) {
+    idsToDelete = explicit
+    finalPizze = pizze
+    finalBibite = bibite
+  } else {
+    const sessionOrders = await ordersForTableSince(tableId, lastPrinted)
+    const sessionIds = sessionOrders.map((o) => o.id!).filter((id) => id > 0)
+    if (sessionIds.length > 0) {
+      const { pizze: sp, bibite: sb } = await flattenSessionOrdersIntoLines(sessionOrders)
+      finalPizze = [...sp, ...pizze]
+      finalBibite = mergeBibiteCartLines(sb, bibite)
+      idsToDelete = sessionIds
     }
+  }
 
+  return db.transaction('rw', pizzappOrderRwTables(idsToDelete.length > 0), async () => {
     if (idsToDelete.length > 0) {
       await db.tablePrintLog.where('tableId').equals(tableId).delete()
       for (const oid of idsToDelete) {
@@ -659,6 +661,7 @@ export async function getActiveTavoli(): Promise<TavoloEntity[]> {
 }
 
 export async function commitSessionPrint(tableId: number, summaryText: string): Promise<void> {
+  await ensurePizzappDatabaseReady()
   const now = Date.now()
   await db.transaction('rw', [db.tablePrintLog, db.tavoli], async () => {
     await db.tablePrintLog.add({ tableId, printedAtMillis: now, summaryText })

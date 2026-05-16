@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { db } from '../db/database'
+import { db, ensurePizzappDatabaseReady } from '../db/database'
 
 /** Evita ambiguità useLiveQuery(undefined): distinguere caricamento DB da “nessuna riga”. */
 export function RootRedirect() {
@@ -10,7 +10,7 @@ export function RootRedirect() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      await db.open()
+      await ensurePizzappDatabaseReady()
       const s = await db.appState.get(1)
       if (!cancelled) {
         setWizardOk(!!s?.wizardCompletato)

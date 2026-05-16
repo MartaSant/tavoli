@@ -1,6 +1,35 @@
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie, { type EntityTable, type Table } from 'dexie'
 import { normalizeUsername } from '../domain/usernameNormalizer'
 import { getPizzappDexieName } from './dexieDbName'
+
+/** Object store attesi nella versione corrente dello schema. */
+export const REQUIRED_STORES = [
+  'users',
+  'pizze',
+  'modificatori',
+  'bibite',
+  'appState',
+  'orders',
+  'orderLinePizza',
+  'orderLinePizzaMod',
+  'orderLineBibita',
+  'tavoli',
+  'tablePrintLog',
+] as const
+
+const STORES_V3_AND_UP = {
+  users: '++id, &usernameNorm, username, attivo, role',
+  pizze: '++id, nome, attiva, ordineVisualizzazione',
+  modificatori: '++id, nome, attiva, ordineVisualizzazione',
+  bibite: '++id, nome, attiva, ordineVisualizzazione',
+  appState: 'id',
+  orders: '++id, createdAt, numeroDisplay, tableId',
+  orderLinePizza: '++id, orderId, lineIndex',
+  orderLinePizzaMod: '++id, pizzaLineId',
+  orderLineBibita: '++id, orderId',
+  tavoli: '++id, &nomeNorm, nome, attivo',
+  tablePrintLog: '++id, tableId, printedAtMillis',
+} as const
 import type {
   AppStateEntity,
   BibitaEntity,
@@ -70,23 +99,45 @@ export class PizzappDB extends Dexie {
         }
       })
     this.version(3)
-      .stores({
-        users: '++id, &usernameNorm, username, attivo, role',
-        pizze: '++id, nome, attiva, ordineVisualizzazione',
-        modificatori: '++id, nome, attiva, ordineVisualizzazione',
-        bibite: '++id, nome, attiva, ordineVisualizzazione',
-        appState: 'id',
-        orders: '++id, createdAt, numeroDisplay, tableId',
-        orderLinePizza: '++id, orderId, lineIndex',
-        orderLinePizzaMod: '++id, pizzaLineId',
-        orderLineBibita: '++id, orderId',
-        tavoli: '++id, &nomeNorm, nome, attivo',
-        tablePrintLog: '++id, tableId, printedAtMillis',
-      })
+      .stores({ ...STORES_V3_AND_UP })
       .upgrade(async () => {
         /* nuovi campi opzionali sugli ordini */
       })
+    // Bump per DB bloccati a v3 senza tavoli/tablePrintLog (migrazione incompleta).
+    this.version(4).stores({ ...STORES_V3_AND_UP })
   }
 }
 
 export const db = new PizzappDB()
+
+/**
+ * Apre il DB, applica migrazioni e — se mancano object store — ricrea IndexedDB.
+ * Evita NotFoundError quando una transazione include store assenti (es. tablePrintLog).
+ */
+export async function ensurePizzappDatabaseReady(): Promise<void> {
+  await db.open()
+  const missing = REQUIRED_STORES.filter((name) => !db.tables.some((t) => t.name === name))
+  if (missing.length === 0) return
+  console.warn('[PizzappDB] schema incompleto, ricreo IndexedDB:', missing.join(', '))
+  db.close()
+  await db.delete()
+  await db.open()
+  const stillMissing = REQUIRED_STORES.filter((name) => !db.tables.some((t) => t.name === name))
+  if (stillMissing.length > 0) {
+    throw new Error(`Database locale non inizializzato (${stillMissing.join(', ')})`)
+  }
+}
+
+export function pizzappOrderRwTables(includePrintLog: boolean): Table[] {
+  const tables: Table[] = [
+    db.orders,
+    db.orderLinePizza,
+    db.orderLinePizzaMod,
+    db.orderLineBibita,
+    db.appState,
+    db.tavoli,
+    db.users,
+  ]
+  if (includePrintLog) tables.push(db.tablePrintLog)
+  return tables
+}
