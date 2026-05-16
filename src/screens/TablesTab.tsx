@@ -113,7 +113,11 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
         </button>
       </div>
       {liveKitchenOpen && (
-        <LiveKitchenPanel blocks={liveKitchen ?? []} onClose={() => setLiveKitchenOpen(false)} />
+        <LiveKitchenPanel
+          blocks={liveKitchen ?? []}
+          selectedTableIds={selectedTableIds}
+          onClose={() => setLiveKitchenOpen(false)}
+        />
       )}
       {msg && <p className={msg.includes('inviata') ? 'ok' : 'error'}>{msg}</p>}
       <div className="row-gap wrap">

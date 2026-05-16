@@ -2,9 +2,11 @@ import type { LiveKitchenTableBlock } from '../domain/liveKitchenBoard'
 
 export function LiveKitchenPanel({
   blocks,
+  selectedTableIds,
   onClose,
 }: {
   blocks: LiveKitchenTableBlock[]
+  selectedTableIds: ReadonlySet<number>
   onClose: () => void
 }) {
   const total = blocks.reduce((n, b) => n + b.pizze.length, 0)
@@ -21,12 +23,21 @@ export function LiveKitchenPanel({
         <p className="hint live-kitchen-empty">Nessuna pizza in attesa di invio.</p>
       ) : (
         <ul className="live-kitchen-list">
-          {blocks.map((block) => (
+          {blocks.map((block) => {
+            const tableSelected = selectedTableIds.has(block.tableId)
+            return (
             <li key={block.tableId} className="live-kitchen-table-block">
               <div className="live-kitchen-table-name">{block.tableName}</div>
               <ul>
                 {block.pizze.map((p, i) => (
-                  <li key={`${block.tableId}-${i}`} className="live-kitchen-pizza-line">
+                  <li
+                    key={`${block.tableId}-${i}`}
+                    className={
+                      tableSelected
+                        ? 'live-kitchen-pizza-line live-kitchen-pizza-line--selected'
+                        : 'live-kitchen-pizza-line'
+                    }
+                  >
                     <span className="live-kitchen-pizza-primary">{p.primary}</span>
                     {p.sublines.map((sub, j) => (
                       <span key={j} className="live-kitchen-pizza-sub">
@@ -37,7 +48,8 @@ export function LiveKitchenPanel({
                 ))}
               </ul>
             </li>
-          ))}
+            )
+          })}
         </ul>
       )}
     </section>

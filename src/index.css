@@ -18,6 +18,8 @@
   --table-session-border: #5a9a62;
   --table-sent-bg: #c8e6c9;
   --table-sent-border: #2e7d32;
+  --live-kitchen-selected-bg: #fde8e0;
+  --live-kitchen-selected-border: var(--terracotta);
 }
 
 html[data-theme='light'] {
@@ -39,6 +41,8 @@ html[data-theme='dark'] {
   --table-session-border: #6daf78;
   --table-sent-bg: #1a3d24;
   --table-sent-border: #4caf6a;
+  --live-kitchen-selected-bg: #3d2818;
+  --live-kitchen-selected-border: var(--terracotta);
 }
 
 *,
@@ -426,7 +430,13 @@ textarea {
   padding: 0.35rem 0.5rem;
   border-radius: 6px;
   background: var(--card);
-  border: 1px solid var(--table-session-border);
+  border: 1px solid var(--cream-deep);
+}
+
+.live-kitchen-pizza-line--selected {
+  background: var(--live-kitchen-selected-bg);
+  border-color: var(--live-kitchen-selected-border);
+  box-shadow: inset 3px 0 0 var(--live-kitchen-selected-border);
 }
 
 .live-kitchen-pizza-primary {
