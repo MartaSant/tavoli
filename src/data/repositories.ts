@@ -630,7 +630,12 @@ export async function createTavolo(nome: string): Promise<number> {
   const norm = normalizeUsername(trimmed)
   if (!norm) throw new Error('Nome tavolo non valido')
   const clash = await db.tavoli.where('nomeNorm').equals(norm).first()
-  if (clash) throw new Error('Nome tavolo già in uso')
+  if (clash?.attivo) throw new Error('Nome tavolo già in uso')
+  if (clash && clash.id != null && !clash.attivo) {
+    await db.tavoli.update(clash.id, {
+      nomeNorm: `${clash.nomeNorm}__inactive_${clash.id}__`,
+    })
+  }
   return (await db.tavoli.add({
     nome: trimmed,
     nomeNorm: norm,
@@ -640,7 +645,12 @@ export async function createTavolo(nome: string): Promise<number> {
 }
 
 export async function deactivateTavolo(id: number): Promise<void> {
-  await db.tavoli.update(id, { attivo: false })
+  const t = await db.tavoli.get(id)
+  if (!t) return
+  await db.tavoli.update(id, {
+    attivo: false,
+    nomeNorm: `${t.nomeNorm}__inactive_${id}__`,
+  })
 }
 
 export async function getActiveTavoli(): Promise<TavoloEntity[]> {
