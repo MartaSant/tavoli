@@ -12,6 +12,7 @@ export interface CartPizzaLine {
   prezzoBaseCentesimi: number
   mods: CartModLine[]
   nota: string | null
+  inviataInCucina?: boolean
 }
 
 export function lineTotalPizza(line: CartPizzaLine): number {
@@ -24,6 +25,7 @@ export interface CartBibitaLine {
   nome: string
   prezzoUnitarioCentesimi: number
   quantita: number
+  inviataInCucina?: boolean
 }
 
 export function lineTotalBibita(line: CartBibitaLine): number {

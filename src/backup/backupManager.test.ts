@@ -71,6 +71,7 @@ describe('importMenuCatalog', () => {
       prezzoBaseSnapshot: 999,
       noteLibere: null,
       lineIndex: 0,
+      inviataInCucina: false,
     })) as number
 
     await db.orderLinePizzaMod.add({
@@ -87,6 +88,7 @@ describe('importMenuCatalog', () => {
       nomeSnapshot: 'Vecchia bibita',
       prezzoUnitarioSnapshot: 200,
       quantita: 1,
+      inviataInCucina: false,
     })
   })
 

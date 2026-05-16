@@ -25,11 +25,22 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
   const [nuovoNome, setNuovoNome] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
   const [busyInvia, setBusyInvia] = useState(false)
+  const [selectedTableIds, setSelectedTableIds] = useState<Set<number>>(() => new Set())
 
-  const pendingComandeCount = useMemo(
-    () => (tavoli ?? []).filter((t) => t.displayStatus === 'session').length,
-    [tavoli],
-  )
+  const pendingSelectedCount = useMemo(() => {
+    if (!tavoli) return 0
+    return tavoli.filter((t) => t.id != null && selectedTableIds.has(t.id) && t.displayStatus === 'session')
+      .length
+  }, [tavoli, selectedTableIds])
+
+  function toggleSelected(tableId: number, checked: boolean) {
+    setSelectedTableIds((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(tableId)
+      else next.delete(tableId)
+      return next
+    })
+  }
 
   async function onCrea() {
     try {
@@ -61,9 +72,13 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
     setBusyInvia(true)
     setMsg(null)
     try {
-      const n = await inviaComandeSessioni()
-      if (n === 0) setMsg('Nessun tavolo con riepilogo da inviare')
-      else setMsg(`${n} comanda/e inviata/e in cucina`)
+      const ids = [...selectedTableIds]
+      const n = await inviaComandeSessioni(ids)
+      if (n === 0) setMsg('Nessun tavolo selezionato con righe da inviare')
+      else {
+        setMsg(`${n} comanda/e inviata/e in cucina`)
+        setSelectedTableIds(new Set())
+      }
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Errore')
     } finally {
@@ -80,7 +95,7 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
         <button
           type="button"
           className="table-legend-item table-legend-item--session table-legend-btn"
-          disabled={busyInvia || pendingComandeCount === 0}
+          disabled={busyInvia || pendingSelectedCount === 0}
           onClick={() => void onInviaComande()}
         >
           Invia comande
@@ -102,8 +117,19 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
       <ul className="history-list">
         {(tavoli ?? []).map((t) => (
           <li key={t.id} className={`card history-card ${tableCardClass(t.displayStatus)}`}>
-            <div className="row-between wrap">
-              <strong>
+            <div className="row-between wrap table-card-row">
+              {t.hasSessionOrders ? (
+                <label className="table-select-label">
+                  <input
+                    type="checkbox"
+                    checked={selectedTableIds.has(t.id!)}
+                    onChange={(e) => toggleSelected(t.id!, e.target.checked)}
+                  />
+                </label>
+              ) : (
+                <span className="table-select-spacer" aria-hidden />
+              )}
+              <strong className="table-card-title">
                 {t.nome}
                 {t.displayStatus === 'sent' && (
                   <span className="hint" style={{ marginLeft: '0.5rem', fontWeight: 400 }}>

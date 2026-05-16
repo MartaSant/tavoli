@@ -113,6 +113,45 @@ export class PizzappDB extends Dexie {
         }
       }
     })
+    this.version(6).stores({ ...STORES_V3_AND_UP }).upgrade(async (tx) => {
+      for (const store of ['orderLinePizza', 'orderLineBibita'] as const) {
+        const rows = await tx.table(store).toArray()
+        for (const row of rows as { id?: number; inviataInCucina?: boolean }[]) {
+          if (row.id != null && row.inviataInCucina == null) {
+            await tx.table(store).update(row.id, { inviataInCucina: false })
+          }
+        }
+      }
+      const tavoli = (await tx.table('tavoli').toArray()) as {
+        id?: number
+        lastPrintedAtMillis?: number
+        comandaInviataAtMillis?: number
+      }[]
+      for (const t of tavoli) {
+        if (t.id == null || (t.comandaInviataAtMillis ?? 0) <= 0) continue
+        const after = t.lastPrintedAtMillis ?? 0
+        const orders = (await tx.table('orders').toArray()) as {
+          id?: number
+          tableId?: number
+          createdAt: number
+        }[]
+        for (const o of orders) {
+          if (o.id == null || o.tableId !== t.id || o.createdAt <= after) continue
+          const pizzas = (await tx.table('orderLinePizza').where('orderId').equals(o.id).toArray()) as {
+            id?: number
+          }[]
+          for (const p of pizzas) {
+            if (p.id != null) await tx.table('orderLinePizza').update(p.id, { inviataInCucina: true })
+          }
+          const bibite = (await tx.table('orderLineBibita').where('orderId').equals(o.id).toArray()) as {
+            id?: number
+          }[]
+          for (const b of bibite) {
+            if (b.id != null) await tx.table('orderLineBibita').update(b.id, { inviataInCucina: true })
+          }
+        }
+      }
+    })
   }
 }
 

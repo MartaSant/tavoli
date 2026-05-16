@@ -80,6 +80,8 @@ export interface OrderLinePizzaEntity {
   prezzoBaseSnapshot: number
   noteLibere: string | null
   lineIndex: number
+  /** false = evidenziata nel riepilogo sessione */
+  inviataInCucina: boolean
 }
 
 export interface OrderLinePizzaModEntity {
@@ -98,6 +100,7 @@ export interface OrderLineBibitaEntity {
   nomeSnapshot: string
   prezzoUnitarioSnapshot: number
   quantita: number
+  inviataInCucina: boolean
 }
 
 export const defaultAppState = (): AppStateEntity => ({

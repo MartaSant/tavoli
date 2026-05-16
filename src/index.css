@@ -324,6 +324,47 @@ textarea {
   overflow: auto;
 }
 
+.session-summary-pre {
+  white-space: pre;
+}
+
+.session-summary-pre .summary-line {
+  display: block;
+}
+
+.session-summary-pre .summary-line--highlight {
+  background: var(--table-session-bg);
+  border-radius: 2px;
+  box-shadow: inset 3px 0 0 var(--table-session-border);
+}
+
+.table-card-row {
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.table-select-label {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.table-select-label input {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+}
+
+.table-select-spacer {
+  width: 1.1rem;
+  flex-shrink: 0;
+}
+
+.table-card-title {
+  flex: 1;
+  min-width: 8rem;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

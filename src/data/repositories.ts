@@ -8,9 +8,12 @@ import {
   createNoteOnlyCartLine,
 } from '../domain/orderNoteLine'
 import {
-  type TavoloDisplayStatus,
-  resolveTavoloDisplayStatusFromRow,
-} from '../domain/tavoloDisplayStatus'
+  buildSessionSummaryModel,
+  type SessionSummaryBibitaRow,
+  type SessionSummaryModel,
+  type SessionSummaryPizzaRow,
+} from '../domain/sessionSummaryModel'
+import { type TavoloDisplayStatus, resolveTavoloDisplayStatus } from '../domain/tavoloDisplayStatus'
 import { pizzaNomePerOrdine } from '../domain/pizzaNome'
 import { normalizeUsername } from '../domain/usernameNormalizer'
 import { PinHasher } from '../auth/pinHasher'
@@ -423,24 +426,36 @@ export function previewOrderSnapshot(
   return formatReceipt(receipt)
 }
 
-function mergeBibiteCartLines(a: CartBibitaLine[], b: CartBibitaLine[]): CartBibitaLine[] {
+function mergeBibiteCartLines(session: CartBibitaLine[], fromCart: CartBibitaLine[]): CartBibitaLine[] {
   const map = new Map<string, CartBibitaLine>()
   let salt = 0
   const keyOf = (l: CartBibitaLine) => `${l.bibitaId ?? 'x'}|${l.nome}|${l.prezzoUnitarioCentesimi}`
-  const ingest = (lines: CartBibitaLine[]) => {
+  const ingest = (lines: CartBibitaLine[], cartSource: boolean) => {
     for (const line of lines) {
       salt++
       const k = keyOf(line)
       const ex = map.get(k)
+      const sent = line.inviataInCucina ?? false
       if (!ex) {
-        map.set(k, { ...line, localId: newLocalIdFallback(salt + 90000) })
+        map.set(k, {
+          ...line,
+          localId: newLocalIdFallback(salt + 90000),
+          inviataInCucina: cartSource ? false : sent,
+        })
       } else {
-        map.set(k, { ...ex, quantita: ex.quantita + line.quantita })
+        const inviataInCucina = cartSource
+          ? false
+          : (ex.inviataInCucina ?? false) && sent
+        map.set(k, {
+          ...ex,
+          quantita: ex.quantita + line.quantita,
+          inviataInCucina,
+        })
       }
     }
   }
-  ingest(a)
-  ingest(b)
+  ingest(session, false)
+  ingest(fromCart, true)
   return [...map.values()]
 }
 
@@ -517,6 +532,7 @@ export async function saveOrder(
         prezzoBaseSnapshot: line.prezzoBaseCentesimi,
         noteLibere: line.nota?.trim() ? line.nota : null,
         lineIndex: index,
+        inviataInCucina: line.inviataInCucina ?? false,
       })) as number
       const modRows: Omit<OrderLinePizzaModEntity, 'id'>[] = line.mods.map((mod) => ({
         pizzaLineId,
@@ -539,6 +555,7 @@ export async function saveOrder(
             nomeSnapshot: b.nome,
             prezzoUnitarioSnapshot: b.prezzoUnitarioCentesimi,
             quantita: b.quantita,
+            inviataInCucina: b.inviataInCucina ?? false,
           }),
         ),
       )
@@ -616,6 +633,7 @@ export async function loadOrderIntoCart(orderId: number): Promise<OrderCartLoad>
     nome: row.nomeSnapshot,
     prezzoUnitarioCentesimi: row.prezzoUnitarioSnapshot,
     quantita: row.quantita,
+    inviataInCucina: row.inviataInCucina ?? false,
   }))
   return {
     nomeCliente: order.nomeCliente,
@@ -636,6 +654,7 @@ function cartPizzaLineFromDbRow(
     nomeSnapshot: string
     prezzoBaseSnapshot: number
     noteLibere: string | null
+    inviataInCucina?: boolean
   },
   localId: number,
   mods: CartPizzaLine['mods'],
@@ -654,6 +673,7 @@ function cartPizzaLineFromDbRow(
     prezzoBaseCentesimi: row.prezzoBaseSnapshot,
     mods,
     nota: row.noteLibere,
+    inviataInCucina: row.inviataInCucina ?? false,
   }
 }
 
@@ -704,6 +724,21 @@ export async function tableHasSessionOrders(tableId: number): Promise<boolean> {
   return count > 0
 }
 
+export async function tableHasUnsentKitchenLines(tableId: number): Promise<boolean> {
+  await ensurePizzappDatabaseReady()
+  const tavolo = await db.tavoli.get(tableId)
+  if (!tavolo) return false
+  const orders = await ordersForTableSince(tableId, tavolo.lastPrintedAtMillis ?? 0)
+  for (const order of orders) {
+    const oid = order.id!
+    const pizzas = await db.orderLinePizza.where('orderId').equals(oid).toArray()
+    if (pizzas.some((p) => !(p.inviataInCucina ?? false))) return true
+    const bibite = await db.orderLineBibita.where('orderId').equals(oid).toArray()
+    if (bibite.some((b) => !(b.inviataInCucina ?? false))) return true
+  }
+  return false
+}
+
 export type ActiveTavoloRow = TavoloEntity & {
   hasSessionOrders: boolean
   displayStatus: TavoloDisplayStatus
@@ -714,30 +749,42 @@ export async function getActiveTavoliWithSessionState(): Promise<ActiveTavoloRow
   return Promise.all(
     tavoli.map(async (t) => {
       const hasSessionOrders = await tableHasSessionOrders(t.id!)
+      const hasUnsent = hasSessionOrders ? await tableHasUnsentKitchenLines(t.id!) : false
       return {
         ...t,
         comandaInviataAtMillis: t.comandaInviataAtMillis ?? 0,
         hasSessionOrders,
-        displayStatus: resolveTavoloDisplayStatusFromRow(
-          { ...t, comandaInviataAtMillis: t.comandaInviataAtMillis ?? 0 },
-          hasSessionOrders,
-        ),
+        displayStatus: resolveTavoloDisplayStatus(hasSessionOrders, hasUnsent),
       }
     }),
   )
 }
 
-/** Marca «comanda inviata» su tutti i tavoli attivi con riepilogo in attesa. */
-export async function inviaComandeSessioni(): Promise<number> {
+/** Marca «comanda inviata» sui tavoli selezionati con righe ancora da inviare. */
+export async function inviaComandeSessioni(tableIds: number[]): Promise<number> {
   await ensurePizzappDatabaseReady()
+  if (tableIds.length === 0) return 0
   const now = Date.now()
   let count = 0
-  const tavoli = await getActiveTavoli()
-  for (const t of tavoli) {
-    if (t.id == null) continue
-    if (!(await tableHasSessionOrders(t.id))) continue
-    if ((t.comandaInviataAtMillis ?? 0) > 0) continue
-    await db.tavoli.update(t.id, { comandaInviataAtMillis: now })
+  const unique = [...new Set(tableIds.filter((id) => id > 0))]
+  for (const tableId of unique) {
+    if (!(await tableHasSessionOrders(tableId))) continue
+    if (!(await tableHasUnsentKitchenLines(tableId))) continue
+    const tavolo = await db.tavoli.get(tableId)
+    if (!tavolo) continue
+    const orders = await ordersForTableSince(tableId, tavolo.lastPrintedAtMillis ?? 0)
+    for (const order of orders) {
+      const oid = order.id!
+      const pizzas = await db.orderLinePizza.where('orderId').equals(oid).toArray()
+      for (const p of pizzas) {
+        if (p.id != null) await db.orderLinePizza.update(p.id, { inviataInCucina: true })
+      }
+      const bibite = await db.orderLineBibita.where('orderId').equals(oid).toArray()
+      for (const b of bibite) {
+        if (b.id != null) await db.orderLineBibita.update(b.id, { inviataInCucina: true })
+      }
+    }
+    await db.tavoli.update(tableId, { comandaInviataAtMillis: now })
     count++
   }
   return count
@@ -855,43 +902,94 @@ async function flattenSessionOrdersIntoLines(orders: OrderEntity[]): Promise<{ p
         nome: row.nomeSnapshot,
         prezzoUnitarioCentesimi: row.prezzoUnitarioSnapshot,
         quantita: row.quantita,
+        inviataInCucina: row.inviataInCucina ?? false,
       })
     }
   }
   return { pizze, bibite }
 }
 
+async function loadSessionSummaryRows(
+  tableId: number,
+): Promise<{
+  tavoloNome: string
+  orders: OrderEntity[]
+  pizze: SessionSummaryPizzaRow[]
+  bibite: SessionSummaryBibitaRow[]
+  totaleCentesimi: number
+} | null> {
+  const tavolo = await db.tavoli.get(tableId)
+  if (!tavolo) return null
+  const orders = await ordersForTableSince(tableId, tavolo.lastPrintedAtMillis ?? 0)
+  if (orders.length === 0) return null
+  const pizze: SessionSummaryPizzaRow[] = []
+  const bibite: SessionSummaryBibitaRow[] = []
+  for (const order of orders) {
+    const oid = order.id!
+    const pizzaRows = (await db.orderLinePizza.where('orderId').equals(oid).toArray()).sort(
+      (a, b) => a.lineIndex - b.lineIndex,
+    )
+    for (const row of pizzaRows) {
+      const plId = row.id!
+      const modEnts = await db.orderLinePizzaMod.where('pizzaLineId').equals(plId).toArray()
+      const highlight = !(row.inviataInCucina ?? false)
+      pizze.push({
+        nome: pizzaNomePerOrdine(row.nomeSnapshot),
+        prezzoBaseCentesimi: row.prezzoBaseSnapshot,
+        extras: modEnts
+          .filter((m) => m.tipo === 'EXTRA')
+          .map((m) => ({ nome: m.nome, prezzoCentesimi: m.prezzoCentesimi })),
+        removals: modEnts.filter((m) => m.tipo === 'REMOVAL').map((m) => m.nome),
+        nota: row.noteLibere,
+        highlight,
+      })
+    }
+    const bibRows = await db.orderLineBibita.where('orderId').equals(oid).toArray()
+    for (const row of bibRows) {
+      bibite.push({
+        nome: row.nomeSnapshot,
+        prezzoUnitarioCentesimi: row.prezzoUnitarioSnapshot,
+        quantita: row.quantita,
+        highlight: !(row.inviataInCucina ?? false),
+      })
+    }
+  }
+  const totale =
+    pizze.reduce(
+      (s, p) =>
+        s +
+        p.prezzoBaseCentesimi +
+        p.extras.reduce((e, x) => e + x.prezzoCentesimi, 0),
+      0,
+    ) + bibite.reduce((s, b) => s + b.prezzoUnitarioCentesimi * b.quantita, 0)
+  return { tavoloNome: tavolo.nome, orders, pizze, bibite, totaleCentesimi: totale }
+}
+
+export async function buildSessionSummaryModelForTable(
+  tableId: number,
+): Promise<SessionSummaryModel | null> {
+  await ensurePizzappDatabaseReady()
+  const data = await loadSessionSummaryRows(tableId)
+  if (!data) return null
+  const last = data.orders[data.orders.length - 1]
+  const op = (await db.users.get(last.createdByUserId))?.username
+  return buildSessionSummaryModel({
+    nomeOperatore: op?.trim() || undefined,
+    nomeTavolo: data.tavoloNome,
+    createdAtMillis: Date.now(),
+    numeroDisplay: last.numeroDisplay,
+    pizze: data.pizze,
+    bibite: data.bibite,
+    totaleCentesimi: data.totaleCentesimi,
+  })
+}
+
 export async function formatSessionSummaryText(tableId: number): Promise<string> {
   const tavolo = await db.tavoli.get(tableId)
   if (!tavolo) return 'Tavolo non trovato.'
-  const orders = await ordersForTableSince(tableId, tavolo.lastPrintedAtMillis ?? 0)
-  if (orders.length === 0) return `Nessun ordine in sessione per «${tavolo.nome}».`
-  const { pizze, bibite } = await flattenSessionOrdersIntoLines(orders)
-  const last = orders[orders.length - 1]
-  const op = (await db.users.get(last.createdByUserId))?.username
-  const totale = pizze.reduce((s, p) => s + lineTotalPizza(p), 0) + bibite.reduce((s, b) => s + lineTotalBibita(b), 0)
-  const receipt: ReceiptData = {
-    nomeOperatore: op?.trim() || undefined,
-    nomeCliente: null,
-    nomeTavolo: tavolo.nome,
-    createdAtMillis: Date.now(),
-    numeroDisplay: last.numeroDisplay,
-    orderLabelOverride: 'Riepilogo sessione tavolo',
-    pizze: pizze.map((p) => ({
-      nome: p.nome,
-      prezzoBaseCentesimi: p.prezzoBaseCentesimi,
-      extras: p.mods.filter((m) => m.tipo === 'EXTRA').map((m) => ({ nome: m.nome, prezzoCentesimi: m.prezzoCentesimi })),
-      removals: p.mods.filter((m) => m.tipo === 'REMOVAL').map((m) => m.nome),
-      nota: p.nota,
-    })),
-    bibite: bibite.map((b) => ({
-      nome: b.nome,
-      prezzoUnitarioCentesimi: b.prezzoUnitarioCentesimi,
-      quantita: b.quantita,
-    })),
-    totaleCentesimi: totale,
-  }
-  return formatReceipt(receipt)
+  const model = await buildSessionSummaryModelForTable(tableId)
+  if (!model) return `Nessun ordine in sessione per «${tavolo.nome}».`
+  return model.plainText
 }
 
 export async function loadMergedSessionIntoCart(tableId: number): Promise<OrderCartLoad> {

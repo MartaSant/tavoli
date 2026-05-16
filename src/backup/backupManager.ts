@@ -174,6 +174,7 @@ function pizzaLineToJson(pl: OrderLinePizzaEntity): Record<string, unknown> {
     prezzoBaseSnapshot: pl.prezzoBaseSnapshot,
     noteLibere: pl.noteLibere,
     lineIndex: pl.lineIndex,
+    inviataInCucina: pl.inviataInCucina,
   }
 }
 
@@ -185,6 +186,7 @@ function pizzaLineFromJson(o: Record<string, unknown>, orderId: number): Omit<Or
     prezzoBaseSnapshot: Number(o.prezzoBaseSnapshot),
     noteLibere: o.noteLibere == null ? null : String(o.noteLibere),
     lineIndex: Number(o.lineIndex ?? 0),
+    inviataInCucina: o.inviataInCucina === true,
   }
 }
 
@@ -213,6 +215,7 @@ function bibLineToJson(b: OrderLineBibitaEntity): Record<string, unknown> {
     nomeSnapshot: b.nomeSnapshot,
     prezzoUnitarioSnapshot: b.prezzoUnitarioSnapshot,
     quantita: b.quantita,
+    inviataInCucina: b.inviataInCucina,
   }
 }
 
@@ -223,6 +226,7 @@ function bibLineFromJson(o: Record<string, unknown>, orderId: number): Omit<Orde
     nomeSnapshot: String(o.nomeSnapshot),
     prezzoUnitarioSnapshot: Number(o.prezzoUnitarioSnapshot),
     quantita: Number(o.quantita ?? 1),
+    inviataInCucina: o.inviataInCucina === true,
   }
 }
 

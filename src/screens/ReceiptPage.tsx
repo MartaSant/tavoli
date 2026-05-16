@@ -1,6 +1,9 @@
+import { useLiveQuery } from 'dexie-react-hooks'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { SessionSummaryView } from '../components/SessionSummaryView'
 import { useOrderCart } from '../context/OrderCartContext'
+import { buildSessionSummaryModelForTable } from '../data/repositories'
 import {
   clearReceiptNavigationStaging,
   readReceiptNavigationStaging,
@@ -41,6 +44,12 @@ export function ReceiptPage() {
   } | null>(null)
   const claimed = useRef(false)
 
+  const tableId = payload?.tableSessionPrint?.tableId
+  const sessionModel = useLiveQuery(
+    () => (tableId != null ? buildSessionSummaryModelForTable(tableId) : undefined),
+    [tableId],
+  )
+
   useLayoutEffect(() => {
     if (claimed.current) return
     claimed.current = true
@@ -79,18 +88,20 @@ export function ReceiptPage() {
 
   const snapshot = payload.snapshot
   const isPreview = payload.preview
+  const showSessionSummary = payload.tableSessionPrint != null && sessionModel != null
 
   async function share() {
+    const text = showSessionSummary ? sessionModel!.plainText : snapshot
     try {
       if (navigator.share) {
-        await navigator.share({ text: snapshot })
+        await navigator.share({ text })
         return
       }
     } catch {
       /* ignore */
     }
     try {
-      await navigator.clipboard.writeText(snapshot)
+      await navigator.clipboard.writeText(text)
       window.alert('Copiato negli appunti')
     } catch {
       window.alert('Impossibile condividere o copiare')
@@ -99,11 +110,15 @@ export function ReceiptPage() {
 
   return (
     <div className="surface-page receipt-page">
-      <h1>{isPreview ? 'Anteprima ordine' : 'Scontrino'}</h1>
+      <h1>{isPreview ? 'Anteprima ordine' : payload.tableSessionPrint ? 'Riepilogo sessione' : 'Scontrino'}</h1>
       {isPreview && (
         <p className="hint">Non ancora salvato. Puoi confermare o tornare indietro per modificare.</p>
       )}
-      <pre className="receipt-pre">{snapshot}</pre>
+      {showSessionSummary ? (
+        <SessionSummaryView model={sessionModel!} />
+      ) : (
+        <pre className="receipt-pre">{snapshot}</pre>
+      )}
       <div className="row-gap wrap">
         {isPreview && (
           <>
@@ -132,7 +147,11 @@ export function ReceiptPage() {
         <button type="button" className="primary" onClick={() => void share()}>
           Invia / Copia
         </button>
-        <button type="button" className="secondary" onClick={() => printSnapshot(snapshot)}>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => printSnapshot(showSessionSummary ? sessionModel!.plainText : snapshot)}
+        >
           Stampa
         </button>
         <button
