@@ -754,25 +754,19 @@ export async function loadSessionFromPrintLog(printLogId: number): Promise<{
   }
 }
 
-/** Crea un tavolo attivo e restituisce il carrello della sessione della stampa selezionata. */
+/** Crea un tavolo attivo e salva subito la sessione della stampa come ordine sul tavolo. */
 export async function recreateTavoloFromPrintLog(
   printLogId: number,
   nomeTavolo: string,
-): Promise<{ tableId: number; nome: string; load: OrderCartLoad }> {
+  createdByUserId: number,
+  nomeOperatore?: string | null,
+): Promise<{ tableId: number; nome: string }> {
   const { load } = await loadSessionFromPrintLog(printLogId)
   const tableId = await createTavolo(nomeTavolo)
   const row = await db.tavoli.get(tableId)
   const nome = row?.nome?.trim() || nomeTavolo.trim()
-  return {
-    tableId,
-    nome,
-    load: {
-      ...load,
-      tableId,
-      nomeTavoloSnapshot: nome,
-      sessionOrderIdsToReplaceOnSave: null,
-    },
-  }
+  await saveOrder(tableId, nome, createdByUserId, load.pizze, load.bibite, nomeOperatore, null)
+  return { tableId, nome }
 }
 
 async function flattenSessionOrdersIntoLines(orders: OrderEntity[]): Promise<{ pizze: CartPizzaLine[]; bibite: CartBibitaLine[] }> {

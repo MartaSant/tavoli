@@ -2,9 +2,11 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { useState } from 'react'
+import { useSession } from '../auth/SessionContext'
 import { useOrderCart } from '../context/OrderCartContext'
-import { recreateTavoloFromPrintLog } from '../data/repositories'
+import { getAppState, recreateTavoloFromPrintLog } from '../data/repositories'
 import { db } from '../db/database'
+import { onOrderConfirmed } from '../util/feedback'
 
 type PrintRow = {
   id?: number
@@ -14,7 +16,8 @@ type PrintRow = {
   nomeTavolo: string
 }
 
-export function PrintsTab({ onGoToOrder }: { onGoToOrder: () => void }) {
+export function PrintsTab({ onGoToTavoli }: { onGoToTavoli: () => void }) {
+  const { user } = useSession()
   const cart = useOrderCart()
   const rows = useLiveQuery(async () => {
     const logs = await db.tablePrintLog.orderBy('printedAtMillis').reverse().limit(80).toArray()
@@ -38,15 +41,20 @@ export function PrintsTab({ onGoToOrder }: { onGoToOrder: () => void }) {
   }
 
   async function applyRecreate(row: PrintRow, nome: string) {
+    if (!user?.id) {
+      setMsg('Non autenticato')
+      return
+    }
     setBusy(true)
     setMsg(null)
     try {
-      const { tableId, nome: createdNome, load } = await recreateTavoloFromPrintLog(row.id!, nome)
-      cart.prepareNewOrderForTable(tableId, createdNome)
-      cart.applyCartLoad(load)
+      await recreateTavoloFromPrintLog(row.id!, nome, user.id, user.username)
+      const state = await getAppState()
+      if (state) await onOrderConfirmed(state.confirmFeedback)
+      cart.resetCart()
       setRecreateTarget(null)
       setReplaceCartPending(null)
-      onGoToOrder()
+      onGoToTavoli()
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Errore')
     } finally {
@@ -77,7 +85,7 @@ export function PrintsTab({ onGoToOrder }: { onGoToOrder: () => void }) {
     <div className="stack">
       <h2 className="section-title">Ultime stampe sessione</h2>
       <p className="hint">
-        Seleziona una stampa per creare un nuovo tavolo con lo stesso riepilogo ordini nel carrello.
+        Seleziona una stampa per creare un nuovo tavolo con lo stesso riepilogo già salvato.
       </p>
       {msg && <p className="error">{msg}</p>}
       <ul className="history-list">
@@ -105,7 +113,7 @@ export function PrintsTab({ onGoToOrder }: { onGoToOrder: () => void }) {
           <div className="modal card">
             <h3>Nuovo tavolo da stampa</h3>
             <p className="hint">
-              Verrà creato un tavolo attivo con nel carrello le voci della sessione stampata il{' '}
+              Verrà creato un tavolo attivo con l&apos;ordine della sessione stampata il{' '}
               {format(recreateTarget.printedAtMillis, 'dd/MM/yyyy HH:mm', { locale: it })}.
             </p>
             <input
@@ -117,7 +125,7 @@ export function PrintsTab({ onGoToOrder }: { onGoToOrder: () => void }) {
             />
             <div className="row-gap">
               <button type="button" className="primary" disabled={busy} onClick={() => void confirmRecreate()}>
-                Crea e apri ordine
+                Ricrea tavolo
               </button>
               <button type="button" className="ghost" disabled={busy} onClick={() => setRecreateTarget(null)}>
                 Annulla
@@ -130,8 +138,8 @@ export function PrintsTab({ onGoToOrder }: { onGoToOrder: () => void }) {
       {replaceCartPending != null && (
         <div className="modal-backdrop" role="presentation">
           <div className="modal card">
-            <h3>Sostituire il carrello?</h3>
-            <p>Il carrello attuale verrà sostituito con il riepilogo della stampa selezionata.</p>
+            <h3>Carrello attivo</h3>
+            <p>Il carrello verrà svuotato. Verrà creato il nuovo tavolo con il riepilogo della stampa.</p>
             <input
               className="field"
               placeholder="Nome nuovo tavolo"
@@ -152,7 +160,7 @@ export function PrintsTab({ onGoToOrder }: { onGoToOrder: () => void }) {
                   void applyRecreate(replaceCartPending, nome)
                 }}
               >
-                Sostituisci e crea tavolo
+                Ricrea tavolo
               </button>
               <button type="button" className="ghost" disabled={busy} onClick={() => setReplaceCartPending(null)}>
                 Annulla

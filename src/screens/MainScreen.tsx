@@ -79,7 +79,7 @@ export function MainScreen() {
         {tab === 0 && <TablesTab onGoToOrder={() => setTab(1)} />}
         {tab === 1 && <OrderTab onOrderConfirmed={() => setTab(0)} />}
         {tab === 2 && <HistoryTab />}
-        {tab === 3 && <PrintsTab onGoToOrder={() => setTab(1)} />}
+        {tab === 3 && <PrintsTab onGoToTavoli={() => setTab(0)} />}
         {tab === 4 && <AdminTab />}
       </main>
 
