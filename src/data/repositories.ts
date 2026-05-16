@@ -430,37 +430,85 @@ export function previewOrderSnapshot(
   return formatReceipt(receipt)
 }
 
-function mergeBibiteCartLines(session: CartBibitaLine[], fromCart: CartBibitaLine[]): CartBibitaLine[] {
-  const map = new Map<string, CartBibitaLine>()
-  let salt = 0
-  const keyOf = (l: CartBibitaLine) => `${l.bibitaId ?? 'x'}|${l.nome}|${l.prezzoUnitarioCentesimi}`
-  const ingest = (lines: CartBibitaLine[], cartSource: boolean) => {
-    for (const line of lines) {
-      salt++
-      const k = keyOf(line)
-      const ex = map.get(k)
-      const sent = line.inviataInCucina ?? false
-      if (!ex) {
-        map.set(k, {
-          ...line,
-          localId: newLocalIdFallback(salt + 90000),
-          inviataInCucina: cartSource ? false : sent,
-        })
-      } else {
-        const inviataInCucina = cartSource
-          ? false
-          : (ex.inviataInCucina ?? false) && sent
-        map.set(k, {
-          ...ex,
-          quantita: ex.quantita + line.quantita,
-          inviataInCucina,
-        })
-      }
+function bibitaLineKey(row: {
+  bibitaId: number | null
+  nomeSnapshot: string
+  prezzoUnitarioSnapshot: number
+}): string {
+  return `${row.bibitaId ?? 'x'}|${row.nomeSnapshot}|${row.prezzoUnitarioSnapshot}`
+}
+
+/** Nel riepilogo: righe non inviate sempre separate; le inviate uguali si accorpano in visualizzazione. */
+function appendSessionSummaryBibita(out: SessionSummaryBibitaRow[], row: SessionSummaryBibitaRow): void {
+  if (row.highlight) {
+    out.push({ ...row })
+    return
+  }
+  const last = out[out.length - 1]
+  if (
+    last &&
+    !last.highlight &&
+    last.nome === row.nome &&
+    last.prezzoUnitarioCentesimi === row.prezzoUnitarioCentesimi
+  ) {
+    last.quantita += row.quantita
+    return
+  }
+  out.push({ ...row })
+}
+
+/** Dopo invio comanda: accorpa bibite uguali nel DB e marca tutto inviato. */
+async function consolidateSessionBibiteForTable(tableId: number, afterMillis: number): Promise<void> {
+  const orders = await ordersForTableSince(tableId, afterMillis)
+  if (orders.length === 0) return
+
+  type BibRow = OrderLineBibitaEntity & { orderCreatedAt: number }
+  const all: BibRow[] = []
+  for (const order of orders) {
+    const rows = await db.orderLineBibita.where('orderId').equals(order.id!).toArray()
+    for (const row of rows) {
+      all.push({ ...row, orderCreatedAt: order.createdAt })
     }
   }
-  ingest(session, false)
-  ingest(fromCart, true)
-  return [...map.values()]
+  if (all.length === 0) return
+
+  const groups = new Map<string, BibRow[]>()
+  for (const row of all) {
+    const k = bibitaLineKey(row)
+    const g = groups.get(k) ?? []
+    g.push(row)
+    groups.set(k, g)
+  }
+
+  await db.transaction('rw', [db.orderLineBibita, db.orders], async () => {
+    for (const rows of groups.values()) {
+      const sorted = [...rows].sort((a, b) => {
+        if (a.orderCreatedAt !== b.orderCreatedAt) return a.orderCreatedAt - b.orderCreatedAt
+        return (a.id ?? 0) - (b.id ?? 0)
+      })
+      const keeper = sorted[0]
+      const totalQty = sorted.reduce((s, r) => s + r.quantita, 0)
+      if (keeper.id != null) {
+        await db.orderLineBibita.update(keeper.id, {
+          quantita: totalQty,
+          inviataInCucina: true,
+        })
+      }
+      for (let i = 1; i < sorted.length; i++) {
+        const id = sorted[i].id
+        if (id != null) await db.orderLineBibita.delete(id)
+      }
+    }
+
+    for (const order of orders) {
+      const oid = order.id!
+      const pizzaCount = await db.orderLinePizza.where('orderId').equals(oid).count()
+      const bibCount = await db.orderLineBibita.where('orderId').equals(oid).count()
+      if (pizzaCount === 0 && bibCount === 0) {
+        await deleteOrderAndLines(oid)
+      }
+    }
+  })
 }
 
 export async function saveOrder(
@@ -478,6 +526,7 @@ export async function saveOrder(
   const tavolo = await db.tavoli.get(tableId)
   if (!tavolo) throw new Error('Tavolo non trovato')
   const idsToDelete = [...new Set((replaceSessionOrderIds ?? []).filter((id) => id > 0))]
+  const replacing = idsToDelete.length > 0
   const finalPizze = pizze
   const finalBibite = bibite
 
@@ -519,7 +568,7 @@ export async function saveOrder(
         prezzoBaseSnapshot: line.prezzoBaseCentesimi,
         noteLibere: line.nota?.trim() ? line.nota : null,
         lineIndex: index,
-        inviataInCucina: line.inviataInCucina ?? false,
+        inviataInCucina: replacing ? (line.inviataInCucina ?? false) : false,
       })) as number
       const modRows: Omit<OrderLinePizzaModEntity, 'id'>[] = line.mods.map((mod) => ({
         pizzaLineId,
@@ -542,7 +591,7 @@ export async function saveOrder(
             nomeSnapshot: b.nome,
             prezzoUnitarioSnapshot: b.prezzoUnitarioCentesimi,
             quantita: b.quantita,
-            inviataInCucina: b.inviataInCucina ?? false,
+            inviataInCucina: replacing ? (b.inviataInCucina ?? false) : false,
           }),
         ),
       )
@@ -761,6 +810,7 @@ export async function inviaComandeSessioni(tableIds: number[]): Promise<number> 
     const tavolo = await db.tavoli.get(tableId)
     if (!tavolo) continue
     const orders = await ordersForTableSince(tableId, tavolo.lastPrintedAtMillis ?? 0)
+    const after = tavolo.lastPrintedAtMillis ?? 0
     for (const order of orders) {
       const oid = order.id!
       const pizzas = await db.orderLinePizza.where('orderId').equals(oid).toArray()
@@ -772,6 +822,7 @@ export async function inviaComandeSessioni(tableIds: number[]): Promise<number> 
         if (b.id != null) await db.orderLineBibita.update(b.id, { inviataInCucina: true })
       }
     }
+    await consolidateSessionBibiteForTable(tableId, after)
     await db.tavoli.update(tableId, { comandaInviataAtMillis: now })
     count++
   }
@@ -934,7 +985,7 @@ async function loadSessionSummaryRows(
     }
     const bibRows = await db.orderLineBibita.where('orderId').equals(oid).toArray()
     for (const row of bibRows) {
-      bibite.push({
+      appendSessionSummaryBibita(bibite, {
         nome: row.nomeSnapshot,
         prezzoUnitarioCentesimi: row.prezzoUnitarioSnapshot,
         quantita: row.quantita,
