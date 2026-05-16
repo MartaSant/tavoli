@@ -20,7 +20,7 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
       setNuovoNome('')
       const row = await db.tavoli.get(id)
       if (row) {
-        cart.setSelectedTable(id, row.nome)
+        cart.prepareNewOrderForTable(id, row.nome)
         onGoToOrder()
       }
     } catch (e) {
@@ -64,11 +64,11 @@ export function TablesTab({ onGoToOrder }: { onGoToOrder: () => void }) {
                   type="button"
                   className="small-btn"
                   onClick={() => {
-                    cart.setSelectedTable(t.id!, t.nome)
+                    cart.prepareNewOrderForTable(t.id!, t.nome)
                     onGoToOrder()
                   }}
                 >
-                  Seleziona
+                  Aggiungi ordine
                 </button>
                 <button
                   type="button"

@@ -21,6 +21,8 @@ interface OrderCartContextValue {
   selectedTableId: number | null
   selectedTableNome: string | null
   setSelectedTable: (id: number | null, nome: string | null) => void
+  /** Svuota righe e ricerche; imposta solo il tavolo (nuovo ordine sul tavolo). */
+  prepareNewOrderForTable: (id: number, nome: string | null) => void
   pizzaLines: CartPizzaLine[]
   bibitaLines: CartBibitaLine[]
   pizzaSearch: string
@@ -102,6 +104,17 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
     setModSearch('')
     setModResults([])
   }, [])
+
+  const clearCartLinesAndSearchOnly = useCallback(() => {
+    setPizzaLines([])
+    setBibitaLines([])
+    setPizzaSearch('')
+    setBibitaSearch('')
+    setPizzaResults([])
+    setBibitaResults([])
+    clearModSearch()
+    setMessage(null)
+  }, [clearModSearch])
 
   const addPizza = useCallback((pizza: PizzaEntity) => {
     setPizzaLines((lines) => [
@@ -229,6 +242,14 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
     setSelectedTableNome(nome?.trim() ? nome.trim() : null)
   }, [])
 
+  const prepareNewOrderForTable = useCallback(
+    (id: number, nome: string | null) => {
+      clearCartLinesAndSearchOnly()
+      setSelectedTable(id, nome)
+    },
+    [clearCartLinesAndSearchOnly, setSelectedTable],
+  )
+
   const applyCartLoad = useCallback(
     (load: OrderCartLoad) => {
       setSelectedTableId(load.tableId ?? null)
@@ -326,13 +347,16 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
   const loadMergedSessionIntoCartFn = useCallback(
     async (tableId: number) => {
       try {
+        clearCartLinesAndSearchOnly()
         const load = await mergeTableSessionIntoCart(tableId)
         applyCartLoad(load)
       } catch (e) {
+        setSelectedTableId(null)
+        setSelectedTableNome(null)
         setMessage(e instanceof Error ? e.message : 'Errore')
       }
     },
-    [applyCartLoad],
+    [applyCartLoad, clearCartLinesAndSearchOnly],
   )
 
   const isCartNonEmpty = useCallback(
@@ -345,6 +369,7 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
       selectedTableId,
       selectedTableNome,
       setSelectedTable,
+      prepareNewOrderForTable,
       pizzaLines,
       bibitaLines,
       pizzaSearch,
@@ -388,6 +413,7 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
       selectedTableId,
       selectedTableNome,
       setSelectedTable,
+      prepareNewOrderForTable,
       pizzaLines,
       bibitaLines,
       pizzaSearch,
