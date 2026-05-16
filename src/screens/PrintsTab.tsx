@@ -1,9 +1,21 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
+import { useState } from 'react'
+import { useOrderCart } from '../context/OrderCartContext'
+import { recreateTavoloFromPrintLog } from '../data/repositories'
 import { db } from '../db/database'
 
-export function PrintsTab() {
+type PrintRow = {
+  id?: number
+  tableId: number
+  printedAtMillis: number
+  summaryText: string
+  nomeTavolo: string
+}
+
+export function PrintsTab({ onGoToOrder }: { onGoToOrder: () => void }) {
+  const cart = useOrderCart()
   const rows = useLiveQuery(async () => {
     const logs = await db.tablePrintLog.orderBy('printedAtMillis').reverse().limit(80).toArray()
     return Promise.all(
@@ -13,16 +25,72 @@ export function PrintsTab() {
       }),
     )
   }, [])
+  const [msg, setMsg] = useState<string | null>(null)
+  const [recreateTarget, setRecreateTarget] = useState<PrintRow | null>(null)
+  const [recreateNome, setRecreateNome] = useState('')
+  const [replaceCartPending, setReplaceCartPending] = useState<PrintRow | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  function openRecreateDialog(row: PrintRow) {
+    setMsg(null)
+    setRecreateNome(row.nomeTavolo)
+    setRecreateTarget(row)
+  }
+
+  async function applyRecreate(row: PrintRow, nome: string) {
+    setBusy(true)
+    setMsg(null)
+    try {
+      const { tableId, nome: createdNome, load } = await recreateTavoloFromPrintLog(row.id!, nome)
+      cart.prepareNewOrderForTable(tableId, createdNome)
+      cart.applyCartLoad(load)
+      setRecreateTarget(null)
+      setReplaceCartPending(null)
+      onGoToOrder()
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Errore')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function onRecreateClick(row: PrintRow) {
+    if (cart.isCartNonEmpty()) {
+      setReplaceCartPending(row)
+      setRecreateNome(row.nomeTavolo)
+      return
+    }
+    openRecreateDialog(row)
+  }
+
+  async function confirmRecreate() {
+    if (!recreateTarget?.id) return
+    const nome = recreateNome.trim()
+    if (!nome) {
+      setMsg('Inserisci il nome del nuovo tavolo')
+      return
+    }
+    await applyRecreate(recreateTarget, nome)
+  }
 
   return (
     <div className="stack">
       <h2 className="section-title">Ultime stampe sessione</h2>
+      <p className="hint">
+        Seleziona una stampa per creare un nuovo tavolo con lo stesso riepilogo ordini nel carrello.
+      </p>
+      {msg && <p className="error">{msg}</p>}
       <ul className="history-list">
         {(rows ?? []).map((r) => (
           <li key={r.id} className="card history-card">
-            <div className="hint">{format(r.printedAtMillis, 'dd/MM/yyyy HH:mm', { locale: it })}</div>
-            <div>
-              <strong>{r.nomeTavolo}</strong>
+            <div className="row-between wrap">
+              <div>
+                <div className="hint">{format(r.printedAtMillis, 'dd/MM/yyyy HH:mm', { locale: it })}</div>
+                <strong>{r.nomeTavolo}</strong>
+              </div>
+              <button type="button" className="small-btn" onClick={() => onRecreateClick(r)}>
+                Ricrea tavolo
+              </button>
             </div>
             <pre className="receipt-pre" style={{ fontSize: '11px', maxHeight: '8rem', overflow: 'auto' }}>
               {r.summaryText}
@@ -31,6 +99,68 @@ export function PrintsTab() {
         ))}
       </ul>
       {(rows?.length ?? 0) === 0 && <p className="hint">Nessuna stampa sessione registrata.</p>}
+
+      {recreateTarget != null && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal card">
+            <h3>Nuovo tavolo da stampa</h3>
+            <p className="hint">
+              Verrà creato un tavolo attivo con nel carrello le voci della sessione stampata il{' '}
+              {format(recreateTarget.printedAtMillis, 'dd/MM/yyyy HH:mm', { locale: it })}.
+            </p>
+            <input
+              className="field"
+              placeholder="Nome nuovo tavolo"
+              value={recreateNome}
+              onChange={(e) => setRecreateNome(e.target.value)}
+              autoFocus
+            />
+            <div className="row-gap">
+              <button type="button" className="primary" disabled={busy} onClick={() => void confirmRecreate()}>
+                Crea e apri ordine
+              </button>
+              <button type="button" className="ghost" disabled={busy} onClick={() => setRecreateTarget(null)}>
+                Annulla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {replaceCartPending != null && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal card">
+            <h3>Sostituire il carrello?</h3>
+            <p>Il carrello attuale verrà sostituito con il riepilogo della stampa selezionata.</p>
+            <input
+              className="field"
+              placeholder="Nome nuovo tavolo"
+              value={recreateNome}
+              onChange={(e) => setRecreateNome(e.target.value)}
+            />
+            <div className="row-gap">
+              <button
+                type="button"
+                className="primary"
+                disabled={busy}
+                onClick={() => {
+                  const nome = recreateNome.trim()
+                  if (!nome) {
+                    setMsg('Inserisci il nome del nuovo tavolo')
+                    return
+                  }
+                  void applyRecreate(replaceCartPending, nome)
+                }}
+              >
+                Sostituisci e crea tavolo
+              </button>
+              <button type="button" className="ghost" disabled={busy} onClick={() => setReplaceCartPending(null)}>
+                Annulla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

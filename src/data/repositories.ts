@@ -699,6 +699,82 @@ export async function ordersForTableSince(tableId: number, afterMillis: number):
   return all.sort((a, b) => a.createdAt - b.createdAt)
 }
 
+export async function ordersForTableBetween(
+  tableId: number,
+  afterMillis: number,
+  beforeMillisInclusive: number,
+): Promise<OrderEntity[]> {
+  const all = await db.orders
+    .filter(
+      (o) =>
+        o.tableId === tableId &&
+        o.createdAt > afterMillis &&
+        o.createdAt <= beforeMillisInclusive,
+    )
+    .toArray()
+  return all.sort((a, b) => a.createdAt - b.createdAt)
+}
+
+async function sessionStartMillisForPrintLog(
+  tableId: number,
+  printedAtMillis: number,
+): Promise<number> {
+  const logs = await db.tablePrintLog.where('tableId').equals(tableId).toArray()
+  const prev = logs
+    .filter((l) => l.printedAtMillis < printedAtMillis)
+    .sort((a, b) => b.printedAtMillis - a.printedAtMillis)[0]
+  return prev?.printedAtMillis ?? 0
+}
+
+/** Carrello dalla sessione chiusa associata a una riga di `tablePrintLog`. */
+export async function loadSessionFromPrintLog(printLogId: number): Promise<{
+  load: OrderCartLoad
+  suggestedTableName: string
+}> {
+  await ensurePizzappDatabaseReady()
+  const log = await db.tablePrintLog.get(printLogId)
+  if (!log) throw new Error('Stampa non trovata')
+  const tavolo = await db.tavoli.get(log.tableId)
+  const afterMillis = await sessionStartMillisForPrintLog(log.tableId, log.printedAtMillis)
+  const orders = await ordersForTableBetween(log.tableId, afterMillis, log.printedAtMillis)
+  if (orders.length === 0) {
+    throw new Error(
+      'Nessun ordine recuperabile per questa stampa (sessione vuota o dati già rimossi dallo storico)',
+    )
+  }
+  const { pizze, bibite } = await flattenSessionOrdersIntoLines(orders)
+  return {
+    suggestedTableName: tavolo?.nome?.trim() || `Tavolo ${log.tableId}`,
+    load: {
+      nomeCliente: null,
+      pizze,
+      bibite,
+      sessionOrderIdsToReplaceOnSave: null,
+    },
+  }
+}
+
+/** Crea un tavolo attivo e restituisce il carrello della sessione della stampa selezionata. */
+export async function recreateTavoloFromPrintLog(
+  printLogId: number,
+  nomeTavolo: string,
+): Promise<{ tableId: number; nome: string; load: OrderCartLoad }> {
+  const { load } = await loadSessionFromPrintLog(printLogId)
+  const tableId = await createTavolo(nomeTavolo)
+  const row = await db.tavoli.get(tableId)
+  const nome = row?.nome?.trim() || nomeTavolo.trim()
+  return {
+    tableId,
+    nome,
+    load: {
+      ...load,
+      tableId,
+      nomeTavoloSnapshot: nome,
+      sessionOrderIdsToReplaceOnSave: null,
+    },
+  }
+}
+
 async function flattenSessionOrdersIntoLines(orders: OrderEntity[]): Promise<{ pizze: CartPizzaLine[]; bibite: CartBibitaLine[] }> {
   const pizze: CartPizzaLine[] = []
   const bibite: CartBibitaLine[] = []
