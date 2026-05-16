@@ -1,8 +1,5 @@
 # Pubblicazione su GitHub Pages (project site).
 # Impostazioni repo: Pages → Source: GitHub Actions
-#
-# Nota: il template GitHub ufficiale abbina upload-pages-artifact@v3 con deploy-pages@v5
-# (v5+v5 dell'upload può far fallire il deploy senza log chiari).
 
 name: Deploy GitHub Pages
 
@@ -10,6 +7,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+
+env:
+  # Azioni JS su runner Node 24 (deprecazione Node 20: giu 2026).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   contents: read
@@ -28,15 +29,15 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
 
       - run: npm ci
       - run: npm run build:pages
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
