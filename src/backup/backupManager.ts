@@ -232,6 +232,7 @@ function tavoloToJson(t: TavoloEntity): Record<string, unknown> {
     nomeNorm: t.nomeNorm,
     attivo: t.attivo,
     lastPrintedAtMillis: t.lastPrintedAtMillis,
+    comandaInviataAtMillis: t.comandaInviataAtMillis,
   }
 }
 
@@ -241,6 +242,7 @@ function tavoloFromJson(o: Record<string, unknown>): Omit<TavoloEntity, 'id'> {
     nomeNorm: String(o.nomeNorm),
     attivo: o.attivo !== false,
     lastPrintedAtMillis: Number(o.lastPrintedAtMillis ?? 0),
+    comandaInviataAtMillis: Number(o.comandaInviataAtMillis ?? 0),
   }
 }
 

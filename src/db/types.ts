@@ -61,6 +61,8 @@ export interface TavoloEntity {
   nomeNorm: string
   attivo: boolean
   lastPrintedAtMillis: number
+  /** > 0 quando la comanda sessione è stata inviata in cucina. */
+  comandaInviataAtMillis: number
 }
 
 export interface TablePrintLogEntity {

@@ -7,6 +7,10 @@ import {
   cartHasOrderContent,
   createNoteOnlyCartLine,
 } from '../domain/orderNoteLine'
+import {
+  type TavoloDisplayStatus,
+  resolveTavoloDisplayStatusFromRow,
+} from '../domain/tavoloDisplayStatus'
 import { pizzaNomePerOrdine } from '../domain/pizzaNome'
 import { normalizeUsername } from '../domain/usernameNormalizer'
 import { PinHasher } from '../auth/pinHasher'
@@ -543,6 +547,8 @@ export async function saveOrder(
     const next = OrderNumberService.nextAfter(numero)
     await db.appState.put({ ...state, nextOrderNumber: next })
 
+    await db.tavoli.update(tableId, { comandaInviataAtMillis: 0 })
+
     const saved = await db.orders.get(orderId)
     if (!saved) throw new Error('Ordine non salvato')
     return saved
@@ -668,6 +674,7 @@ export async function createTavolo(nome: string): Promise<number> {
     nomeNorm: norm,
     attivo: true,
     lastPrintedAtMillis: 0,
+    comandaInviataAtMillis: 0,
   })) as number
 }
 
@@ -697,16 +704,43 @@ export async function tableHasSessionOrders(tableId: number): Promise<boolean> {
   return count > 0
 }
 
-export type ActiveTavoloRow = TavoloEntity & { hasSessionOrders: boolean }
+export type ActiveTavoloRow = TavoloEntity & {
+  hasSessionOrders: boolean
+  displayStatus: TavoloDisplayStatus
+}
 
 export async function getActiveTavoliWithSessionState(): Promise<ActiveTavoloRow[]> {
   const tavoli = await getActiveTavoli()
   return Promise.all(
-    tavoli.map(async (t) => ({
-      ...t,
-      hasSessionOrders: await tableHasSessionOrders(t.id!),
-    })),
+    tavoli.map(async (t) => {
+      const hasSessionOrders = await tableHasSessionOrders(t.id!)
+      return {
+        ...t,
+        comandaInviataAtMillis: t.comandaInviataAtMillis ?? 0,
+        hasSessionOrders,
+        displayStatus: resolveTavoloDisplayStatusFromRow(
+          { ...t, comandaInviataAtMillis: t.comandaInviataAtMillis ?? 0 },
+          hasSessionOrders,
+        ),
+      }
+    }),
   )
+}
+
+/** Marca «comanda inviata» su tutti i tavoli attivi con riepilogo in attesa. */
+export async function inviaComandeSessioni(): Promise<number> {
+  await ensurePizzappDatabaseReady()
+  const now = Date.now()
+  let count = 0
+  const tavoli = await getActiveTavoli()
+  for (const t of tavoli) {
+    if (t.id == null) continue
+    if (!(await tableHasSessionOrders(t.id))) continue
+    if ((t.comandaInviataAtMillis ?? 0) > 0) continue
+    await db.tavoli.update(t.id, { comandaInviataAtMillis: now })
+    count++
+  }
+  return count
 }
 
 export async function commitSessionPrint(tableId: number, summaryText: string): Promise<void> {

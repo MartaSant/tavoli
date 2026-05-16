@@ -16,6 +16,8 @@
   --table-idle-border: #c8b8a4;
   --table-session-bg: #e8f2e6;
   --table-session-border: #5a9a62;
+  --table-sent-bg: #c8e6c9;
+  --table-sent-border: #2e7d32;
 }
 
 html[data-theme='light'] {
@@ -35,6 +37,8 @@ html[data-theme='dark'] {
   --table-idle-border: #5c5046;
   --table-session-bg: #243328;
   --table-session-border: #6daf78;
+  --table-sent-bg: #1a3d24;
+  --table-sent-border: #4caf6a;
 }
 
 *,
@@ -391,6 +395,24 @@ textarea {
   border-color: var(--table-session-border);
 }
 
+.table-legend-item--sent {
+  background: var(--table-sent-bg);
+  border-color: var(--table-sent-border);
+}
+
+.table-legend-btn {
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+  background: var(--table-session-bg);
+  border: 1px solid var(--table-session-border);
+}
+
+.table-legend-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .table-card--idle {
   background: var(--table-idle-bg);
   border-color: var(--table-idle-border);
@@ -401,6 +423,13 @@ textarea {
 .table-card--session {
   background: var(--table-session-bg);
   border-color: var(--table-session-border);
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+
+.table-card--sent {
+  background: var(--table-sent-bg);
+  border-color: var(--table-sent-border);
   border-left-width: 4px;
   border-left-style: solid;
 }

@@ -105,6 +105,14 @@ export class PizzappDB extends Dexie {
       })
     // Bump per DB bloccati a v3 senza tavoli/tablePrintLog (migrazione incompleta).
     this.version(4).stores({ ...STORES_V3_AND_UP })
+    this.version(5).stores({ ...STORES_V3_AND_UP }).upgrade(async (tx) => {
+      const rows = await tx.table('tavoli').toArray()
+      for (const row of rows as { id?: number; comandaInviataAtMillis?: number }[]) {
+        if (row.id != null && row.comandaInviataAtMillis == null) {
+          await tx.table('tavoli').update(row.id, { comandaInviataAtMillis: 0 })
+        }
+      }
+    })
   }
 }
 
